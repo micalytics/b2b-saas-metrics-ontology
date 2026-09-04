@@ -1,0 +1,105 @@
+id: contract-line
+type: entity
+title: Contract line
+status: stable
+
+description: >
+  One priced line of a contract for one term. This is the grain at which
+  committed revenue exists, and the entity that d-revenue-basis reads when the
+  answer is "committed".
+
+grain: One row per priced line per contract term. An amendment that changes price
+  or quantity mid-term closes the existing line and opens a new one.
+
+properties:
+  - name: contract_line_id
+    type: string
+    required: true
+  - name: subscription_id
+    type: string
+    required: true
+    references: subscription
+  - name: party_id
+    type: string
+    required: true
+    references: party
+  - name: product_id
+    type: string
+    required: false
+  - name: start_date
+    type: date
+    required: true
+    description: First day the line is contractually in force.
+  - name: end_date
+    type: date
+    required: false
+    description: >
+      Last day in force. Null means evergreen. Not the same as a churn date —
+      see d-churn-dating.
+  - name: term_months
+    type: integer
+    required: false
+    description: >
+      Committed term length. Drives d-contract-normalisation; a 12-month term
+      billed upfront and a monthly term produce identical committed MRR only if
+      this is populated.
+  - name: billing_frequency
+    type: enum
+    values: [monthly, quarterly, semiannual, annual, upfront, usage]
+    required: true
+  - name: amount
+    type: decimal
+    required: true
+    description: Contracted amount for the line over its billing frequency.
+  - name: currency
+    type: string
+    required: true
+    description: ISO 4217. Read by d-fx-treatment.
+  - name: fx_rate
+    type: decimal
+    required: false
+    required_when: d-fx-treatment != single-currency
+  - name: fx_rate_date
+    type: date
+    required: false
+    required_when: d-fx-treatment != single-currency
+  - name: quantity
+    type: decimal
+    required: false
+  - name: unit_price
+    type: decimal
+    required: false
+  - name: discount_amount
+    type: decimal
+    required: false
+    description: >
+      Read by the "MRR is net of discounts" convention. A business that reports
+      gross MRR overrides the convention rather than dropping this property.
+  - name: is_recurring
+    type: boolean
+    required: true
+    description: >
+      False for setup fees, professional services, hardware and other one-offs.
+      Read by d-non-recurring-revenue.
+  - name: minimum_commitment_amount
+    type: decimal
+    required: false
+    description: >
+      Contractual floor for a consumption line. Read first by
+      d-usage-recurring-basis; where present, no trailing calculation is needed.
+
+read_by_decisions:
+  - d-revenue-basis
+  - d-contract-normalisation
+  - d-non-recurring-revenue
+  - d-fx-treatment
+  - d-usage-recurring-basis
+
+pitfalls:
+  - >
+    `end_date` is a contractual fact. A churn date is a reporting choice made in
+    d-churn-dating. Conflating them is the most common cause of churn landing in
+    the wrong period.
+  - >
+    Where `term_months` is null, committed MRR cannot be normalised and the
+    business is effectively on the billed basis whether it says so or not.

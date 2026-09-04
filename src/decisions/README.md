@@ -63,6 +63,19 @@ different questions with different denominators. They are four metric nodes —
 The naming is a separate matter and genuinely contested, so it is its own
 decision. See `d-retention-naming`.
 
+## How defaults are chosen
+
+**A default reflects prevailing market practice, not the best answer.** Where the
+two diverge, the default follows the market and the node documents why the market
+is wrong. A user who lands on a default should be landing where most of their
+peers already are; a user who wants the more defensible option should have to
+choose it deliberately, having read why.
+
+This rule exists because the alternative is a reference ontology whose defaults
+quietly encode one practitioner's judgement — the failure this project was built
+to correct. Where a default is arguably not the strongest option, the node
+carries a `default_rationale` saying so.
+
 ## Parameters (not asked as decisions)
 
 `dormancy_window_days` · `fiscal_year_start_month` · `ltv_discount_rate` ·

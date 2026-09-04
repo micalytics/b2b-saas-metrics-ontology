@@ -93,7 +93,15 @@ options:
     used_by: Datadog, DigitalOcean, Sumo Logic and HashiCorp all annualise the
       latest month. Dynatrace uses a daily rate multiplied by 365.
 
-default: trailing-percentile
+default: last-period-annualised
+
+default_rationale: >
+  Defaults in this ontology follow prevailing market practice, not the authors'
+  preference. Annualising the latest month is what most public usage-based
+  companies do, so it is the default a new user should land on and have to
+  deliberately move away from. Its weakness — treating one strong month as
+  permanent — is documented in this node's options and pitfalls rather than
+  hidden by choosing a different default.
 
 parameters:
   - id: usage_floor_window_months

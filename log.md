@@ -6,7 +6,9 @@ this file is the running journal and the list of open questions.
 ## TODO
 
 - Add `.gitattributes` marking `build/` as `linguist-generated` (ADR-0003).
-- Delete the leftover `.gitkeep` files in directories that now have content.
+- Delete the leftover `.gitkeep` files in `src/entities`, `src/metrics`,
+  `src/schema`, `tools`, `build/*` and `examples/*` (`git rm` them; the sandbox
+  cannot).
 - Write the JSON Schema for decisions in `src/schema/` and wire up CI validation.
 - Replace the illustrative "97% to 112%" NRR range in the README with the real
   figure once the Phase 4 worked example computes it.
@@ -20,10 +22,27 @@ this file is the running journal and the list of open questions.
   the ontology need a parallel "recurring-equivalent revenue" concept?
 - Does Bookings belong in Tier 1? TCV vs ACV vs new-only is a real disagreement.
 - Should Gross Margin drop to Tier 2?
-- Is `usage_floor_percentile: 10` the right default, or should it be 25? Needs
-  testing against real consumption data before v0.1 ships.
+- Is `usage_floor_percentile: 10` the right value, or 25? Needs testing against
+  real consumption data before v0.1 ships. (Only applies when a user selects
+  trailing-percentile; it is no longer the default.)
 - Does the trailing floor recompute every month, or reset only on contract
   events? Monthly recomputation is assumed but not yet stated in the model.
+
+## 2026-09-04 (entities)
+
+- **Entity model started.** `src/entities/README.md` with the model, the grain
+  table, and the reasoning; `contract-line` and `invoice-line` written as the
+  first two, since between them they are read by five of the fourteen decisions.
+- **Party vs Customer split.** `d-customer-grain` cannot be baked into the data
+  model, so the ontology models `party` with a self-referencing hierarchy and
+  treats `customer` as a resolved view at the chosen grain. Logo counts, NRR
+  denominators and CAC all move when the grain changes — correct behaviour, and
+  the clearest demonstration of why bindings exist.
+- **Period is a convention, not an entity.** Generated from
+  `fiscal_year_start_month` plus the period-grain convention.
+- **No usage entity.** Consumption history derives from `invoice-line` rows
+  flagged `is_usage`.
+- Usage default switched to last-period-annualised per the defaults rule.
 
 ## 2026-09-04 (later)
 
@@ -39,7 +58,12 @@ this file is the running journal and the list of open questions.
   grounded in public company filings: committed-minimum-only (Elastic, Cloudera),
   trailing-minimum, trailing-percentile, trailing-average (MongoDB),
   last-period-annualised (Datadog, DigitalOcean, HashiCorp, Sumo Logic).
-  Default is trailing-percentile.
+  Default is last-period-annualised — the market-practice rule below.
+- **Defaults rule established.** A default follows prevailing market practice,
+  not the strongest option, with `default_rationale` where the two diverge. The
+  usage node is the first case: last-period-annualised is more inflationary than
+  the trailing methods, and is still the default because it is what most
+  usage-based public companies do.
 - **The traversal is stateful.** `d-pricing-model` is asked first and gates
   `d-usage-recurring-basis`; decisions carry `applies_when`.
 - Count now **14**. Health check still passes.
