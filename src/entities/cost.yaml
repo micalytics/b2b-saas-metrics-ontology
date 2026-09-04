@@ -79,6 +79,8 @@ pitfalls:
     while the acquisition happened in one. Whether CAC uses the cash cost or the
     amortised cost is a binding choice and changes payback materially.
   - >
-    Fully-loaded CAC that includes customer success double-counts against gross
-    margin if customer success also sits in COGS. Check d-cac-scope and
-    d-cogs-scope together, never separately.
+    Fully-loaded CAC that includes customer success would double-count against
+    gross margin if customer success also sits in COGS — the same dollar lowers
+    LTV and raises CAC at once. Resolved by the two gross-margin variants rather
+    than by forbidding the overlap; see ADR-0005. Only the shared category moves,
+    never COGS as a whole.

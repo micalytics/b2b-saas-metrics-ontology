@@ -9,7 +9,9 @@ this file is the running journal and the list of open questions.
 - Delete the leftover `.gitkeep` files in `src/entities`, `src/metrics`,
   `src/schema`, `tools`, `build/*` and `examples/*` (`git rm` them; the sandbox
   cannot).
-- Write the JSON Schema for decisions in `src/schema/` and wire up CI validation.
+- Write the JSON Schema for decisions, entities and metrics in `src/schema/` and
+  wire up CI validation. Must enforce that a derived metric's `consumes` names a
+  specific variant (ADR-0005).
 - Replace the illustrative "97% to 112%" NRR range in the README with the real
   figure once the Phase 4 worked example computes it.
 
@@ -27,6 +29,24 @@ this file is the running journal and the list of open questions.
   trailing-percentile; it is no longer the default.)
 - Does the trailing floor recompute every month, or reset only on contract
   events? Monthly recomputation is assumed but not yet stated in the model.
+
+## 2026-09-04 (cross-decision constraints)
+
+- **First cross-decision constraint solved.** Customer success selected by both
+  `d-cac-scope` and `d-cogs-scope` double-counts: one dollar lowers LTV through
+  margin and raises CAC at the same time.
+- Rejected the obvious fix. Mutual exclusion between the two decisions would
+  forbid two individually defensible answers — reported gross margin *should*
+  carry CS in COGS, and CAC *may* legitimately carry CS where that team owns
+  renewal. The error exists only at composition.
+- **Resolution: two gross-margin variants.** `gross-margin-reported` for the P&L
+  and Rule of 40; `gross-margin-unit-economics`, excluding anything selected by
+  `d-cac-scope`, for LTV and CAC Payback. Identical when there is no overlap.
+- Metrics gain a `consumes` field naming which upstream variant they read, so a
+  bundle validates without running the guided flow. See ADR-0005.
+- Pattern for future constraints: resolve at composition, express as a variant,
+  never as a prohibition. Capitalised commissions and professional services
+  revenue are the next likely candidates.
 
 ## 2026-09-04 (entities complete)
 
