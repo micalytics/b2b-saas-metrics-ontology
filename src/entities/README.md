@@ -64,11 +64,25 @@ entity is introduced. If a business bills usage in arrears at a different grain
 than it meters it, that is a mapping problem on the way in, not an ontology
 problem.
 
-## Open design questions
+## Cost has no customer relationship, by design
+
+Acquisition cost is not measurable per customer in practice. Modelling a link
+between `cost` and `customer` would let allocation assumptions pass themselves
+off as facts, so the relationship does not exist. CAC is a portfolio metric over
+a cohort acquired in a period, and the ontology can only express it that way.
+
+`cost.attribution` exists to separate new-business from expansion spend where a
+business genuinely tracks it, and defaults to `unattributed` because most rows
+honestly are. What `d-cac-scope` does with unattributed cost is an assumption,
+and that node has to say so out loud.
+
+## Status
+
+All seven entities are written. Two open questions remain:
 
 - Does `contract-line` need an explicit amendment or version chain, or is a
   start/end date per line sufficient to reconstruct history? Sufficient for the
   Tier 1 metrics as currently scoped, but expansion attribution may force it.
-- `cost` has no customer relationship, which makes fully-loaded per-customer CAC
-  impossible by construction. That is deliberate — allocation is a modelling
-  choice, not a fact — but `d-cac-scope` should say so explicitly.
+- When customers merge or are acquired, is history restated under the new parent
+  or left under the old one? Changes retention; recorded in the binding rather
+  than decided here.

@@ -1,0 +1,84 @@
+id: cost
+type: entity
+title: Cost
+status: stable
+
+description: >
+  Operating cost for a period, by category. Deliberately has no customer
+  relationship: per-customer acquisition cost is not measurable in practice, and
+  modelling it as though it were would invite allocation assumptions dressed up
+  as facts.
+
+grain: One row per cost category per period. Not per customer, and not per
+  transaction.
+
+properties:
+  - name: period_start
+    type: date
+    required: true
+  - name: period_end
+    type: date
+    required: true
+  - name: category
+    type: enum
+    values:
+      - paid-media
+      - marketing-other
+      - sales-salaries
+      - sales-commissions
+      - sales-other
+      - customer-success
+      - support
+      - hosting-infrastructure
+      - professional-services-delivery
+      - third-party-software-cogs
+      - research-and-development
+      - general-and-administrative
+    required: true
+    description: >
+      The granularity exists so that d-cac-scope and d-cogs-scope can select
+      subsets without the business re-cutting its P&L. A company that cannot
+      split at this level answers those decisions with a coarser option.
+  - name: amount
+    type: decimal
+    required: true
+  - name: currency
+    type: string
+    required: true
+  - name: fx_rate
+    type: decimal
+    required: false
+    required_when: d-fx-treatment != single-currency
+  - name: fx_rate_date
+    type: date
+    required: false
+    required_when: d-fx-treatment != single-currency
+  - name: attribution
+    type: enum
+    values: [new-business, expansion, retention, unattributed]
+    required: true
+    default: unattributed
+    description: >
+      Most sales and marketing cost cannot honestly be attributed to acquiring
+      new customers as against growing existing ones. `unattributed` is the
+      expected value for the majority of rows. d-cac-scope must state what it
+      does with unattributed cost when the answer is new-business-only, because
+      that is an assumption rather than a measurement.
+
+read_by_decisions:
+  - d-cac-scope
+  - d-cogs-scope
+
+pitfalls:
+  - >
+    CAC is a portfolio metric. It is meaningful for a cohort of customers
+    acquired in a period and meaningless for any individual customer, however
+    tempting a per-customer figure looks on a dashboard.
+  - >
+    Capitalised commissions under ASC 606 sit in the P&L across several periods
+    while the acquisition happened in one. Whether CAC uses the cash cost or the
+    amortised cost is a binding choice and changes payback materially.
+  - >
+    Fully-loaded CAC that includes customer success double-counts against gross
+    margin if customer success also sits in COGS. Check d-cac-scope and
+    d-cogs-scope together, never separately.

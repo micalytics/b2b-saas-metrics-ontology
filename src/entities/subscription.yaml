@@ -1,0 +1,71 @@
+id: subscription
+type: entity
+title: Subscription
+status: stable
+
+description: >
+  The lifecycle container for a customer's recurring relationship. Groups
+  contract lines and carries the dates that d-churn-dating chooses between.
+
+grain: One row per subscription lifecycle. A customer who churns and returns has
+  two subscriptions; whether the second counts as new or reactivated is decided
+  by the `dormancy_window_days` parameter, not here.
+
+properties:
+  - name: subscription_id
+    type: string
+    required: true
+  - name: party_id
+    type: string
+    required: true
+    references: party
+  - name: start_date
+    type: date
+    required: true
+  - name: cancellation_notice_date
+    type: date
+    required: false
+    description: >
+      When the customer communicated intent to leave. Often months before service
+      actually ends on an annual contract. One of the three candidate churn dates.
+  - name: service_end_date
+    type: date
+    required: false
+    description: >
+      When the contracted service actually ends. The second candidate churn date,
+      and usually the one finance prefers.
+  - name: last_paid_period_end
+    type: date
+    required: false
+    description: >
+      End of the last service period actually paid for. The third candidate
+      churn date, and the only one derivable without a CRM.
+  - name: status
+    type: enum
+    values: [active, pending-cancellation, ended, paused]
+    required: true
+    description: >
+      `paused` exists because seasonal businesses genuinely pause. Whether a
+      paused subscription counts as churned is a binding choice; the default
+      convention treats a pause exceeding `dormancy_window_days` as churn.
+  - name: end_reason
+    type: enum
+    values: [voluntary, non-payment, downgrade-to-free, migrated, unknown]
+    required: false
+    description: >
+      Not read by any Tier 1 metric, but retained because churn analysis is the
+      first thing anyone asks for once retention is computable.
+
+read_by_decisions:
+  - d-churn-dating
+  - d-revenue-basis
+
+pitfalls:
+  - >
+    The three candidate dates can span two or three quarters for the same
+    customer. Which one a business uses moves churn between periods without
+    changing anything real, which is why d-churn-dating exists.
+  - >
+    Migrations between plans or entities are frequently recorded as a cancel plus
+    a new subscription. Left untreated they appear as churn plus new business,
+    inflating both. `end_reason: migrated` is the hook for excluding them.

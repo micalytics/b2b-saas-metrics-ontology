@@ -1,0 +1,61 @@
+id: customer
+type: entity
+derived: true
+resolved_from: party
+title: Customer
+status: stable
+
+description: >
+  A resolved view over the party hierarchy at the grain chosen in
+  d-customer-grain. Not a stored table: the same underlying parties produce
+  different customer rows under different bindings, and that is the point.
+
+grain: One row per party node whose `hierarchy_level` matches the binding's
+  answer to d-customer-grain, with all descendant activity rolled up into it.
+
+resolution:
+  rule: >
+    Select parties where `hierarchy_level` equals the chosen grain. Attribute
+    every subscription, contract line, invoice line and opportunity belonging to
+    that party or any descendant of it to the selected node.
+  when_level_absent: >
+    Where a party has no ancestor at the chosen grain — a standalone billing
+    account with no legal-entity parent, for instance — the party itself is
+    treated as the customer. Bindings must state whether this fallback applied,
+    because it silently mixes grains.
+
+properties:
+  - name: customer_id
+    type: string
+    required: true
+    description: The `party_id` of the resolved node.
+  - name: grain
+    type: enum
+    values: [billing-account, legal-entity, group-parent]
+    required: true
+    description: Echoed from the binding so any output is self-describing.
+
+read_by_metrics:
+  - gross-retention-cohort
+  - net-retention-cohort
+  - gross-retention-period
+  - net-retention-period
+  - logo-retention
+  - logo-churn
+  - arpa
+  - cac
+
+read_by_decisions:
+  - d-customer-grain
+
+pitfalls:
+  - >
+    Logo counts, retention denominators and ARPA all move when the grain changes,
+    sometimes dramatically. A business selling to many subsidiaries of a few
+    groups can show 400 customers at billing-account grain and 30 at
+    group-parent grain, with churn rates to match. Neither is wrong; publishing
+    one without naming the grain is.
+  - >
+    Retention computed at a coarser grain is almost always higher, because a
+    subsidiary leaving is contraction rather than churn. Comparing your figure to
+    a benchmark computed at a different grain is meaningless.

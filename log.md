@@ -28,6 +28,21 @@ this file is the running journal and the list of open questions.
 - Does the trailing floor recompute every month, or reset only on contract
   events? Monthly recomputation is assumed but not yet stated in the model.
 
+## 2026-09-04 (entities complete)
+
+- All seven entities written: `party`, `customer`, `subscription`,
+  `contract-line`, `invoice-line`, `cost`, `opportunity`.
+- **Cost has no customer relationship, confirmed as deliberate.** CAC is not
+  measurable per customer, so the link does not exist and allocation assumptions
+  cannot masquerade as facts. `cost.attribution` defaults to `unattributed`.
+- `party.hierarchy_level` added so `d-customer-grain` resolves without walking
+  the tree by hand.
+- `subscription` carries all three candidate churn dates side by side
+  (`cancellation_notice_date`, `service_end_date`, `last_paid_period_end`) so
+  `d-churn-dating` selects rather than derives.
+- `opportunity.outcome` separates `disqualified` from `lost`, which is what makes
+  `d-win-rate-denominator` a real choice.
+
 ## 2026-09-04 (entities)
 
 - **Entity model started.** `src/entities/README.md` with the model, the grain

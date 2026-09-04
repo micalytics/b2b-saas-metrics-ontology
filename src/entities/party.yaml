@@ -1,0 +1,78 @@
+id: party
+type: entity
+title: Party
+status: stable
+
+description: >
+  An organisation the business has a commercial relationship with, at whatever
+  level the source systems record it — a billing account, a legal entity, or a
+  group parent. Parties form a hierarchy; `customer` is a resolved view over it.
+
+grain: One row per organisation node as recorded in the source system. A parent
+  company and its three subsidiaries are four rows, not one.
+
+properties:
+  - name: party_id
+    type: string
+    required: true
+  - name: parent_party_id
+    type: string
+    required: false
+    references: party
+    description: >
+      Null for a root. The chain must be acyclic; validation enforces this.
+      Depth is not limited, but d-customer-grain resolves to one of three named
+      levels rather than to an arbitrary depth.
+  - name: name
+    type: string
+    required: true
+  - name: hierarchy_level
+    type: enum
+    values: [billing-account, legal-entity, group-parent]
+    required: true
+    description: >
+      Which of the three grains this node represents. This is what makes
+      d-customer-grain resolvable without walking the tree by hand.
+  - name: country
+    type: string
+    required: false
+    description: ISO 3166-1 alpha-2. Not a currency — see d-fx-treatment.
+  - name: segment
+    type: string
+    required: false
+    description: >
+      The business's own segmentation label (SMB, Mid-Market, Enterprise, or
+      whatever it uses). Free text deliberately; segment schemes are not
+      standardisable across companies.
+  - name: industry
+    type: string
+    required: false
+  - name: created_date
+    type: date
+    required: true
+    description: >
+      When the party was first recorded, not when it first paid. A first paid
+      date is derived from invoice-line and must not be duplicated here.
+  - name: is_internal
+    type: boolean
+    required: true
+    description: >
+      Marks test accounts, internal usage, partners and employees. Every metric
+      excludes internal parties by default. Failing to populate this is a common
+      cause of inflated logo counts and depressed ARPA.
+
+read_by_decisions:
+  - d-customer-grain
+
+pitfalls:
+  - >
+    Source systems frequently carry the hierarchy implicitly — a naming
+    convention, a shared domain, a text field. Reconstructing it into
+    `parent_party_id` is usually the single largest data-preparation task in
+    adopting this ontology, and it must happen before any logo or retention
+    metric is trustworthy.
+  - >
+    Mergers and acquisitions between customers restructure the tree. Whether
+    history is restated under the new parent or left under the old one changes
+    retention, and the ontology does not decide this for you — record the choice
+    in the binding.

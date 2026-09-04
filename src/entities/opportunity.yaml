@@ -1,0 +1,70 @@
+id: opportunity
+type: entity
+title: Opportunity
+status: stable
+
+description: >
+  A sales opportunity. Supports win rate, sales cycle length and ACV; not read by
+  any revenue metric, because revenue comes from contracts and invoices rather
+  than from the CRM.
+
+grain: One row per opportunity. Renewals are opportunities only where the
+  business creates them as such; this varies enough that metrics reading this
+  entity must filter on `type` explicitly.
+
+properties:
+  - name: opportunity_id
+    type: string
+    required: true
+  - name: party_id
+    type: string
+    required: true
+    references: party
+  - name: created_date
+    type: date
+    required: true
+    description: >
+      Read by d-win-rate-denominator when the denominator is everything created
+      in a period rather than everything closed.
+  - name: close_date
+    type: date
+    required: false
+  - name: outcome
+    type: enum
+    values: [open, won, lost, disqualified]
+    required: true
+    description: >
+      `disqualified` is separated from `lost` deliberately. Whether disqualified
+      opportunities belong in the win-rate denominator is exactly what
+      d-win-rate-denominator decides, and collapsing the two removes the choice.
+  - name: type
+    type: enum
+    values: [new-business, expansion, renewal]
+    required: true
+  - name: amount
+    type: decimal
+    required: false
+    description: >
+      Expected annual contract value. Pipeline amounts are estimates and should
+      never be reconciled against contract-line amounts.
+  - name: currency
+    type: string
+    required: true
+  - name: source
+    type: string
+    required: false
+    description: Channel or campaign. Free text; taxonomies are company-specific.
+
+read_by_decisions:
+  - d-win-rate-denominator
+
+pitfalls:
+  - >
+    Win rate measured on opportunities *closed* in a period and win rate measured
+    on opportunities *created* in a period answer different questions and move in
+    opposite directions during a pipeline build. Neither is wrong; mixing them
+    across a time series is.
+  - >
+    Opportunities left open indefinitely quietly inflate created-basis win rates,
+    because the denominator never resolves. A hygiene rule for ageing out stale
+    opportunities belongs in the binding.
