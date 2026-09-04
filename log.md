@@ -20,11 +20,29 @@ this file is the running journal and the list of open questions.
   the ontology need a parallel "recurring-equivalent revenue" concept?
 - Does Bookings belong in Tier 1? TCV vs ACV vs new-only is a real disagreement.
 - Should Gross Margin drop to Tier 2?
-- Should `d-pricing-model` be asked *first* and used to skip whole branches, or
-  asked in sequence like the rest? Asking it first shortens the flow for
-  subscription-only companies but makes the traversal stateful.
-- Is `d-retention-basis` really one decision, or two (cohort-vs-snapshot, and
-  the window)? Splitting it would take the count to 14.
+- Is `usage_floor_percentile: 10` the right default, or should it be 25? Needs
+  testing against real consumption data before v0.1 ships.
+- Does the trailing floor recompute every month, or reset only on contract
+  events? Monthly recomputation is assumed but not yet stated in the model.
+
+## 2026-09-04 (later)
+
+- **Retention restructured.** Cohort and period-over-period retention are four
+  separate metrics, not one metric with a basis variant — different denominators,
+  different questions. `d-retention-basis` removed as a decision.
+- **Naming made a decision.** Checked the market position before encoding one:
+  the prevailing view is that NRR and NDR are synonyms, a terminological rather
+  than mathematical split. Encoding the cohort/period naming distinction as
+  canonical would reproduce the failure this project exists to correct, so
+  `d-retention-naming` carries it as a labelling choice over stable metric IDs.
+- **Usage-based MRR resolved.** `d-usage-recurring-basis` with five options
+  grounded in public company filings: committed-minimum-only (Elastic, Cloudera),
+  trailing-minimum, trailing-percentile, trailing-average (MongoDB),
+  last-period-annualised (Datadog, DigitalOcean, HashiCorp, Sumo Logic).
+  Default is trailing-percentile.
+- **The traversal is stateful.** `d-pricing-model` is asked first and gates
+  `d-usage-recurring-basis`; decisions carry `applies_when`.
+- Count now **14**. Health check still passes.
 
 ## 2026-09-04
 

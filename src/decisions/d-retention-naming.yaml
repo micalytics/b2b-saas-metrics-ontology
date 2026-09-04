@@ -1,0 +1,89 @@
+id: d-retention-naming
+type: decision
+title: Retention metric naming
+status: stable
+
+question: >
+  This ontology treats cohort-based and period-over-period retention as four
+  distinct metrics. Which names does your organisation use for them?
+
+why_it_matters: >
+  Cohort-based and period-over-period retention answer different questions and
+  are not two ways of computing one number, so they are modelled as separate
+  metrics. The *names*, however, are genuinely contested, and this ontology does
+  not get to settle that.
+
+  The prevailing industry position is that NRR and NDR are synonyms — a
+  terminological split between investor vocabulary and operator vocabulary, not
+  a mathematical one. A meaningful minority of practitioners, however, use the
+  dollar-retention names specifically for the cohort-based measures and the
+  revenue-retention names for period-over-period.
+
+  Emitting one convention as though it were standard would reproduce exactly the
+  failure this project exists to correct. So the naming is a decision, and the
+  underlying metric IDs are stable regardless of which labels you pick.
+
+options:
+  - id: distinguish
+    label: Distinguish dollar retention from revenue retention
+    summary: >
+      GDR and NDR name the cohort-based measures; GRR and NRR name the
+      period-over-period measures.
+    labels:
+      gross-retention-cohort: GDR
+      net-retention-cohort: NDR
+      gross-retention-period: GRR
+      net-retention-period: NRR
+    implies:
+      - Every metric has an unambiguous short name internally.
+      - External readers will frequently misread them, because most of the market
+        treats NRR and NDR as the same thing. Charts need the basis stated
+        explicitly regardless.
+
+  - id: synonymous
+    label: Treat the terms as synonyms, distinguish by basis
+    summary: >
+      NRR and NDR mean the same thing; the cohort or period basis is stated
+      alongside rather than encoded in the name.
+    labels:
+      gross-retention-cohort: GRR (cohort)
+      net-retention-cohort: NRR (cohort)
+      gross-retention-period: GRR (period-over-period)
+      net-retention-period: NRR (period-over-period)
+    implies:
+      - Matches how most of the market reads these terms, so external
+        communication needs less explanation.
+      - Names alone do not disambiguate, so the basis must travel with the number
+        everywhere it appears.
+
+default: synonymous
+
+gates:
+  - metric: gross-retention-cohort
+    affects: preferred_label
+  - metric: net-retention-cohort
+    affects: preferred_label
+  - metric: gross-retention-period
+    affects: preferred_label
+  - metric: net-retention-period
+    affects: preferred_label
+
+related_decisions:
+  - d-churn-dating
+  - d-customer-grain
+
+pitfalls:
+  - >
+    This decision changes labels only. It never changes a formula. If switching
+    the naming convention changes a number, something upstream is wrong.
+  - >
+    Benchmarks almost never state which basis they used. Treat any external NRR
+    figure as unspecified until proven otherwise.
+
+sources:
+  - id: orm-nrr-ndr
+    title: "NRR vs NDR: Are Net Revenue Retention and Net Dollar Retention Different?"
+    url: https://orm-tech.com/blog/nrr-vs-ndr
+    note: >
+      Argues they are two names for one calculation, and that construction
+      choices move the number far more than the naming convention does.

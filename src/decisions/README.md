@@ -21,16 +21,17 @@ things were initially conflated:
 Promoting a parameter to a decision is how a 13-question flow becomes a
 40-question flow that nobody finishes. Demote aggressively.
 
-## The decisions (13)
+## The decisions (14)
 
 | ID | Question in one line | Gates |
 |---|---|---|
 | `d-revenue-basis` | Committed, billed, or recognised? | MRR, ARR, everything downstream |
-| `d-pricing-model` | Subscription, usage-based, or hybrid? | Whether MRR is meaningful at all |
+| `d-pricing-model` | Subscription, usage-based, or hybrid? | Asked first; gates `d-usage-recurring-basis` |
+| `d-usage-recurring-basis` | How is the recurring floor derived from consumption? | MRR, ARR, Expansion MRR, Churned MRR |
 | `d-contract-normalisation` | How do annual and multi-year contracts become MRR? | MRR, ARR |
 | `d-non-recurring-revenue` | Do setup fees, services and hardware count? | MRR, ARR, Gross Margin, Rule of 40 |
 | `d-churn-dating` | Dated at notice, at end of term, or at last payment? | Churned MRR, GRR, NRR, Logo Churn |
-| `d-retention-basis` | Cohort or snapshot, and over what window? | NRR, GRR |
+| `d-retention-naming` | Do you distinguish NDR from NRR, or treat them as synonyms? | Labels on the four retention metrics |
 | `d-fx-treatment` | Which rate, at which moment, and does history restate? | Every revenue metric |
 | `d-customer-grain` | Billing account, legal entity, or parent group? | Logo metrics, NRR denominator, ARPA, CAC |
 | `d-cac-scope` | Which costs, and acquiring which customers? | CAC, CAC Payback, LTV:CAC, Magic Number |
@@ -39,9 +40,28 @@ Promoting a parameter to a decision is how a 13-question flow becomes a
 | `d-rule-of-40-composition` | Which growth measure, which profitability measure? | Rule of 40 |
 | `d-win-rate-denominator` | Closed-lost only, or everything created? | Win Rate |
 
-**Health check: 13 decisions for 12 Tier 1 metrics.** Target was 10–14. If this
-climbs past ~20 the guided flow stops being usable, and the correct response is
-to prune variants rather than ship a longer questionnaire. See ADR-0004.
+**Health check: 14 decisions.** Target was 10–14. If this climbs past ~20 the
+guided flow stops being usable, and the correct response is to prune variants
+rather than ship a longer questionnaire. See ADR-0004.
+
+## The traversal is stateful
+
+`d-pricing-model` must be asked first, because `d-usage-recurring-basis` only
+appears for usage-based and hybrid businesses. A subscription-only company
+answers 13 questions, not 14. Decisions therefore carry an optional
+`applies_when` block referencing an earlier answer, and the guided flow is a
+traversal rather than a flat list.
+
+## Cohort and period retention are separate metrics, not variants
+
+Cohort-based retention (what happened to the customers who were here at T0) and
+period-over-period retention (what happened between two balance dates) answer
+different questions with different denominators. They are four metric nodes —
+`gross-retention-cohort`, `net-retention-cohort`, `gross-retention-period`,
+`net-retention-period` — not two metrics with a basis variant.
+
+The naming is a separate matter and genuinely contested, so it is its own
+decision. See `d-retention-naming`.
 
 ## Parameters (not asked as decisions)
 

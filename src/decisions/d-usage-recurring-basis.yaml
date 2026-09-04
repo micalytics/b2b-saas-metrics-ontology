@@ -1,0 +1,145 @@
+id: d-usage-recurring-basis
+type: decision
+title: Recurring basis for usage revenue
+status: stable
+
+applies_when:
+  decision: d-pricing-model
+  in: [usage-based, hybrid]
+
+question: >
+  Consumption revenue has no contractually recurring amount. Which part of it do
+  you treat as recurring, and how do you derive that floor from history?
+
+why_it_matters: >
+  Every metric downstream of MRR inherits this choice, and the spread between
+  methods on the same customer is larger than any other decision in this
+  ontology. A customer who spent 800, 1,200, 400, 1,500 and 900 over five months
+  has a recurring floor of 400 under the most conservative method and 1,500 under
+  the most aggressive.
+
+  There is no market consensus. Public filings show at least four different
+  methods in active use, which is precisely why this is a decision node and not a
+  formula.
+
+options:
+  - id: committed-minimum-only
+    label: Committed minimum only
+    summary: >
+      Only a contractual minimum commitment counts as recurring. Consumption above
+      it is never recurring, and customers with no minimum have no MRR.
+    implies:
+      - The most defensible figure, and the least flattering.
+      - Requires a contract record carrying the minimum; billing data alone is
+        insufficient.
+      - Month-to-month and self-serve customers contribute zero MRR, which can be
+        a large and invisible share of the business.
+    used_by: Elastic, Cloudera and Couchbase report on committed amounts.
+
+  - id: trailing-minimum
+    label: Committed minimum, else trailing minimum
+    summary: >
+      Use the contractual minimum where one exists. Where none does, take the
+      lowest monthly revenue over a trailing window and treat that as the floor.
+    parameters: [usage_floor_window_months]
+    implies:
+      - Conservative by construction; a customer's MRR is a level they have
+        demonstrably sustained.
+      - More conservative than any method observed in public company reporting,
+        so benchmarking against public comparables will understate you.
+      - A single anomalous month — an outage, a seasonal trough, a billing
+        correction — defines the floor for the whole window.
+      - MRR can jump upward with no change in customer behaviour, simply because
+        an old low month aged out of the window. This is difficult to explain.
+      - Ramping customers are understated for the length of the window, and
+        contraction is detected late for the same reason.
+
+  - id: trailing-percentile
+    label: Committed minimum, else trailing percentile
+    summary: >
+      As trailing-minimum, but the floor is a low percentile of the trailing
+      window rather than the absolute minimum.
+    parameters: [usage_floor_window_months, usage_floor_percentile]
+    implies:
+      - Keeps the conservatism of trailing-minimum without letting one anomalous
+        month define the floor.
+      - Recommended over trailing-minimum where the window is 12 months or where
+        the business is seasonal.
+      - Requires enough history for a percentile to be meaningful; below about
+        six observations it degenerates toward the minimum.
+
+  - id: trailing-average
+    label: Trailing average
+    summary: >
+      Average monthly consumption over a trailing window becomes the recurring
+      amount.
+    parameters: [usage_floor_window_months]
+    implies:
+      - The most common method in practice, and the one most likely to overstate
+        recurring revenue, because it treats spikes as sustainable.
+      - Smooth and easy to explain, which is much of why it is popular.
+    used_by: MongoDB annualises 90 days of actual consumption for direct sales
+      customers and 30 days for self-serve.
+
+  - id: last-period-annualised
+    label: Last period annualised
+    summary: >
+      The most recent month's consumption is taken as the run rate.
+    implies:
+      - Dominant in public company reporting, and the most volatile of the five.
+      - Maximally responsive to growth and to collapse alike.
+      - A single strong month is reported as though it were permanent, which is
+        the inflation problem in its sharpest form.
+    used_by: Datadog, DigitalOcean, Sumo Logic and HashiCorp all annualise the
+      latest month. Dynatrace uses a daily rate multiplied by 365.
+
+default: trailing-percentile
+
+parameters:
+  - id: usage_floor_window_months
+    type: integer
+    default: 12
+    description: >
+      Length of the trailing window. Where a customer has less history than the
+      window, use all available history and flag the value as provisional.
+  - id: usage_floor_percentile
+    type: number
+    default: 10
+    description: Percentile of the trailing window used as the floor.
+    required_when: option == trailing-percentile
+
+gates:
+  - metric: mrr
+    variants: [mrr-usage-floor]
+  - metric: arr
+  - metric: expansion-mrr
+  - metric: churned-mrr
+
+requires_entities:
+  - contract-line
+  - invoice
+
+related_decisions:
+  - d-pricing-model
+  - d-revenue-basis
+  - d-non-recurring-revenue
+
+pitfalls:
+  - >
+    Whichever method is chosen, the variable revenue above the floor is not
+    recurring and must not be added to MRR. Reporting it separately as usage
+    revenue is fine; folding it in is the single most common error in
+    consumption-business reporting.
+  - >
+    Comparing your usage MRR against a published benchmark is only meaningful if
+    the benchmark used the same method. Most public benchmarks are built on
+    last-period-annualised figures.
+  - >
+    Hybrid businesses must state whether the floor applies to the usage component
+    only or to total revenue. Applying it to total revenue double-counts the
+    subscription element.
+
+sources:
+  - id: ordway-ubp
+    title: How 10 Cloud Providers with Usage-Based Pricing Report ARR
+    url: https://ordwaylabs.com/blog/cloud-usage-based-pricing-report-arr/
