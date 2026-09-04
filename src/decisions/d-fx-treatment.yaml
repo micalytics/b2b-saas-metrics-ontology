@@ -1,0 +1,112 @@
+id: d-fx-treatment
+type: decision
+title: FX treatment
+status: stable
+
+question: >
+  If you bill in more than one currency, at which rate and at which moment do
+  you convert to your reporting currency — and when rates move, does reported
+  history change?
+
+why_it_matters: >
+  The contested question is never what the rate is. It is when you convert and
+  whether history restates. Two companies with identical contracts and identical
+  rates will report different MRR, NRR and churn depending on this answer alone,
+  and "why did last quarter's MRR change?" is the most common symptom of never
+  having decided.
+
+  This is also why FX is a decision and not a metric: a conversion rate has no
+  formula over the entity model, no competing business definitions and no
+  benchmark range. It is a property of a transaction plus a policy about when to
+  apply it. See ADR-0004.
+
+options:
+  - id: single-currency
+    label: Not applicable — we bill in one currency
+    summary: >
+      All revenue is transacted and reported in the same currency.
+    emits: false
+    implies:
+      - No FX properties appear in your bundle at all.
+      - Revisit this if you open a second billing entity; retrofitting FX after
+        the fact means restating history under whichever policy you then pick.
+
+  - id: spot-at-transaction
+    label: Spot rate at transaction date
+    summary: >
+      Each amount is converted at the rate on the day it was contracted or
+      invoiced, and that converted value never changes.
+    implies:
+      - History is stable. A closed period never moves.
+      - Growth figures blend real growth with FX movement, and the two cannot be
+        separated without a constant-currency variant.
+    common_in: Companies whose reporting follows the accounting treatment.
+
+  - id: rate-at-period-close
+    label: Rate at period close
+    summary: >
+      All amounts in a period are converted at a single rate struck at the end of
+      that period.
+    implies:
+      - Within-period comparisons are clean; across-period comparisons are not.
+      - Simpler to implement than per-transaction rates, and materially cheaper
+        if the source systems do not carry a rate per line.
+
+  - id: fixed-budget-rate
+    label: Fixed budget or plan rate
+    summary: >
+      A rate is set once for the year and used for all conversions, isolating
+      operational performance from currency movement.
+    implies:
+      - Growth figures are constant-currency by construction, which is usually
+        what an operator wants to see.
+      - Reported figures will not tie to the statutory accounts. Expect to
+        maintain both.
+    common_in: Multi-country operators managing regional teams against targets.
+
+  - id: restate-at-latest
+    label: Restate at the latest rate
+    summary: >
+      All history is converted at the current rate, so the whole series moves
+      when rates move.
+    implies:
+      - The series is internally comparable at every point in time.
+      - Previously reported numbers change, which is difficult to defend to a
+        board and is rarely acceptable in an audited context.
+      - Any cached or exported figure goes stale immediately.
+
+default: spot-at-transaction
+
+gates:
+  - metric: mrr
+    note: FX variant is applied on top of the d-revenue-basis variant.
+  - metric: arr
+  - metric: nrr
+  - metric: grr
+  - metric: churned-mrr
+  - metric: expansion-mrr
+  - metric: gross-margin
+
+requires_entity_properties:
+  - entity: contract-line
+    properties: [amount, currency, fx_rate, fx_rate_date]
+  - entity: invoice
+    properties: [amount, currency, fx_rate, fx_rate_date]
+
+parameters:
+  - id: reporting_currency
+    type: string
+    description: ISO 4217 code of the currency all metrics are reported in.
+    required_when: option != single-currency
+
+related_decisions:
+  - d-revenue-basis
+  - d-retention-basis
+
+pitfalls:
+  - >
+    Choosing fixed-budget-rate without also producing a statutory view means two
+    sets of books in practice. Decide who owns each and label every chart.
+  - >
+    A constant-currency growth figure and an as-reported growth figure are both
+    legitimate. Publishing one without saying which is not.

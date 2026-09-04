@@ -1,0 +1,84 @@
+id: d-revenue-basis
+type: decision
+title: Revenue basis
+status: stable
+
+question: >
+  Revenue is committed at signature, invoiced on a billing schedule, and
+  recognised as the service is delivered. These three moments can be months
+  apart. Which one does your MRR represent?
+
+why_it_matters: >
+  This is the single largest source of MRR disagreement between two companies
+  with identical contracts. A customer who signs a 12-month deal in January and
+  pays the full year upfront contributes very different monthly numbers under
+  each basis, and every retention and efficiency metric inherits the difference.
+
+options:
+  - id: committed
+    label: Committed
+    summary: >
+      MRR reflects what the customer has contractually agreed to pay, from the
+      contract start date, regardless of when they are invoiced or when the
+      revenue is earned.
+    implies:
+      - Annual prepay and monthly billing produce identical MRR.
+      - MRR moves on the contract date, not the invoice date.
+      - Requires a reliable contract or subscription record; invoices alone are
+        not sufficient.
+    common_in: Sales-led B2B with formal contracts. The most common basis in
+      SaaS reporting and in investor benchmarks.
+
+  - id: billed
+    label: Billed
+    summary: >
+      MRR reflects what was actually invoiced in the period, normalised to a
+      monthly figure.
+    implies:
+      - Annual prepay creates a large spike in one month unless normalised,
+        which makes d-contract-normalisation load-bearing.
+      - Closest to cash, and therefore easiest to reconcile with the billing
+        system.
+      - Diverges from committed whenever invoicing lags or leads the contract.
+    common_in: Self-serve and PLG businesses where the billing system is the
+      system of record and there is no separate contract object.
+
+  - id: recognized
+    label: Recognised
+    summary: >
+      MRR reflects revenue earned in the period under the applicable revenue
+      recognition policy.
+    implies:
+      - Aligns with the P&L, so finance and the board see one number.
+      - Requires a revenue recognition schedule; the ontology models this as a
+        reference, not as something it defines. See ADR-0001.
+      - Deferred revenue and MRR stop being independently derivable from each
+        other.
+    common_in: Later-stage and public companies, and anywhere the CFO owns the
+      metric definition.
+
+default: committed
+
+gates:
+  - metric: mrr
+    variants: [mrr-committed, mrr-billed, mrr-recognized]
+  - metric: arr
+    variants: [arr-committed, arr-billed, arr-recognized]
+
+requires_entities:
+  - contract-line
+  - invoice
+  - subscription
+
+related_decisions:
+  - d-contract-normalisation
+  - d-non-recurring-revenue
+  - d-pricing-model
+
+pitfalls:
+  - >
+    Teams frequently answer "committed" while their pipeline actually reads the
+    billing system. Check what the query does, not what the policy says.
+  - >
+    Mixing bases across metrics — committed MRR against recognised gross margin —
+    produces a Rule of 40 that is internally inconsistent and quietly wrong.

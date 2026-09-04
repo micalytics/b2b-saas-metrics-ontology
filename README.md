@@ -76,7 +76,7 @@ Generated into `build/` and committed, so you can import without running the too
 ## Licence
 
 - **Content** (`src/`, `build/`, `docs/`) — [CC BY 4.0](LICENSE-CONTENT)
-- **Code** (`tools/`, CI) — [Apache 2.0](LICENSE)
+- **Code** (`tools/`, CI) — [Apache 2.0](LICENSE.md)
 
 ## Contributing
 
