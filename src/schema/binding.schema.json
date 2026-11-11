@@ -1,0 +1,136 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "binding.schema.json",
+  "title": "Binding",
+  "description": "One company's resolved set of definitions: its answer to every applicable decision, its parameter values, and any convention it overrides. Choices made in advance only — figures observed when the binding is run against data belong in outputs, not here. Selected variants and labels are not stored: they follow from the answers. Bindings live under examples/, never src/.",
+
+  "type": "object",
+  "required": ["id", "type", "title", "answers"],
+  "properties": {
+    "id": {"$ref": "common.schema.json#/$defs/kebab_id"},
+    "type": {"const": "binding"},
+    "title": {"$ref": "common.schema.json#/$defs/prose"},
+    "description": {"$ref": "common.schema.json#/$defs/prose"},
+    "ontology_version": {
+      "description": "The ontology version the answers were given against.",
+      "type": "string"
+    },
+
+    "answers": {
+      "description": "Decision id to answer. Validator: every decision whose applies_when is met (or that has none) is answered; no decision whose applies_when is unmet is answered; each option belongs to its decision.",
+      "type": "object",
+      "propertyNames": {"$ref": "common.schema.json#/$defs/decision_id"},
+      "additionalProperties": {"$ref": "#/$defs/answer"}
+    },
+
+    "parameters": {
+      "description": "Parameter id to value. Validator: each key is declared by a decision or metric, the value matches the declared type, and parameters whose required_when holds are set. The properties below are parameters agreed but not yet declared on a node; each moves to its owning node when that node is written.",
+      "type": "object",
+      "propertyNames": {"$ref": "common.schema.json#/$defs/snake_id"},
+      "properties": {
+        "max_pause_days": {
+          "description": "A paused subscription becomes churn once the pause exceeds this. No default: no market source yet. Owner: d-churn-dating.",
+          "type": "integer",
+          "minimum": 1
+        },
+        "dormancy_window_days": {
+          "description": "A returning customer within this window is reactivation; beyond it, new. Separate from max_pause_days. No default: no market source yet.",
+          "type": "integer",
+          "minimum": 1
+        },
+        "usage_floor_recompute_months": {
+          "description": "How often the usage floor is recomputed over the trailing usage_floor_window_months. Applies to the trailing-* options of d-usage-recurring-basis only. Owner: d-usage-recurring-basis.",
+          "type": "integer",
+          "minimum": 1,
+          "default": 3
+        },
+        "opportunity_max_age_months": {
+          "description": "An open opportunity older than this is stale. What happens to it is decided by d-win-rate-denominator. Default rationale: maintainer's choice, no market source yet. Owner: d-win-rate-denominator.",
+          "type": "integer",
+          "minimum": 1,
+          "default": 3
+        },
+        "fiscal_year_start_month": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 12
+        },
+        "ltv_discount_rate": {
+          "description": "Owner: ltv / d-ltv-method.",
+          "type": "number",
+          "minimum": 0
+        },
+        "cac_payback_threshold_months": {
+          "description": "Owner: cac-payback.",
+          "type": "integer",
+          "minimum": 1
+        }
+      },
+      "additionalProperties": {"type": ["integer", "number", "string"]}
+    },
+
+    "defaults": {
+      "description": "Conventions: defaults nobody argues about, overridable by those who do, never asked in the guided flow. A key absent from a binding means the convention's default holds.",
+      "type": "object",
+      "properties": {
+        "period_grain": {
+          "type": "string",
+          "default": "calendar-month"
+        },
+        "snapshot_date": {
+          "enum": ["period-end", "period-start"],
+          "default": "period-end"
+        },
+        "mrr_discounts": {
+          "enum": ["net", "gross"],
+          "default": "net"
+        },
+        "amounts_tax": {
+          "enum": ["exclusive", "inclusive"],
+          "default": "exclusive"
+        },
+        "hierarchy_change_history": {
+          "description": "When customers merge or one acquires another, whether history is restated under the new parent. Default rationale: no sourced market practice was found; restate is what most systems produce implicitly, because CRMs overwrite the hierarchy without keeping history. as-recorded needs effective dates on party.parent_party_id, which the entity model does not carry.",
+          "enum": ["restate", "as-recorded"],
+          "default": "restate"
+        },
+        "paused_subscription_churn": {
+          "description": "Whether a paused subscription becomes churn once the pause exceeds max_pause_days.",
+          "enum": ["after-max-pause", "never"],
+          "default": "after-max-pause"
+        },
+        "paused_churn_date": {
+          "description": "Where churn from an over-long pause is dated. pause-start backdates it, so closed periods can change. Interacts with d-churn-dating.",
+          "enum": ["pause-start", "max-pause-exceeded"],
+          "default": "pause-start"
+        },
+        "allow_grain_fallback": {
+          "description": "Where a party has no ancestor at the grain chosen in d-customer-grain, whether the party itself is treated as the customer (true, as customer.yaml describes) or excluded and flagged (false). The count of parties affected is reported in outputs, not stored here.",
+          "type": "boolean",
+          "default": true
+        },
+        "capitalised_commissions": {
+          "description": "Cash versus amortised commissions in CAC. Deliberately untyped: a likely ADR-0005-style composition case, to be settled with d-cac-scope."
+        }
+      },
+      "additionalProperties": false
+    }
+  },
+  "additionalProperties": false,
+
+  "$defs": {
+    "answer": {
+      "type": "object",
+      "required": ["option", "source"],
+      "properties": {
+        "option": {"$ref": "common.schema.json#/$defs/kebab_id"},
+        "source": {
+          "description": "Whether the default was accepted or chosen deliberately.",
+          "enum": ["default", "explicit"]
+        },
+        "rationale": {"$ref": "common.schema.json#/$defs/prose"}
+      },
+      "additionalProperties": false
+    }
+  }
+}

@@ -48,11 +48,11 @@ properties:
   - name: fx_rate
     type: decimal
     required: false
-    required_when: d-fx-treatment != single-currency
+    required_when: {decision: d-fx-treatment, not_equals: single-currency}
   - name: fx_rate_date
     type: date
     required: false
-    required_when: d-fx-treatment != single-currency
+    required_when: {decision: d-fx-treatment, not_equals: single-currency}
   - name: attribution
     type: enum
     values: [new-business, expansion, retention, unattributed]
@@ -68,6 +68,7 @@ properties:
 read_by_decisions:
   - d-cac-scope
   - d-cogs-scope
+  - d-fx-treatment
 
 pitfalls:
   - >

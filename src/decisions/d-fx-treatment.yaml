@@ -81,27 +81,30 @@ gates:
   - metric: mrr
     note: FX variant is applied on top of the d-revenue-basis variant.
   - metric: arr
-  - metric: nrr
-  - metric: grr
+  - metric: gross-retention-cohort
+  - metric: net-retention-cohort
+  - metric: gross-retention-period
+  - metric: net-retention-period
   - metric: churned-mrr
   - metric: expansion-mrr
   - metric: gross-margin
 
-requires_entity_properties:
+reads_entities:
   - entity: contract-line
     properties: [amount, currency, fx_rate, fx_rate_date]
-  - entity: invoice
+  - entity: invoice-line
+    properties: [amount, currency, fx_rate, fx_rate_date]
+  - entity: cost
     properties: [amount, currency, fx_rate, fx_rate_date]
 
 parameters:
   - id: reporting_currency
     type: string
     description: ISO 4217 code of the currency all metrics are reported in.
-    required_when: option != single-currency
+    required_when: {decision: d-fx-treatment, not_equals: single-currency}
 
 related_decisions:
   - d-revenue-basis
-  - d-retention-basis
 
 pitfalls:
   - >

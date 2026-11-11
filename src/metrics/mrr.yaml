@@ -1,0 +1,174 @@
+id: mrr
+type: metric
+tier: 1
+family: revenue-base
+title: Monthly Recurring Revenue
+preferred_label: MRR
+aliases: [MRR, Monthly Recurring Revenue, monthly run rate, recurring revenue]
+status: stable
+
+definition: >
+  The recurring revenue a business is entitled to in a single month from its
+  active customers, normalised to a monthly amount regardless of how it is
+  contracted or billed. Non-recurring amounts are excluded, and the variable
+  portion of consumption revenue is excluded above whatever floor
+  d-usage-recurring-basis establishes.
+
+formula: >
+  Sum over active revenue units of the monthly-normalised recurring amount,
+  as at the measurement instant. Which revenue units are "active", and which
+  amount is taken, are set by the selected variant.
+
+unit: currency
+
+time_semantics:
+  basis: point-in-time
+  as_of: >
+    The last day of the period, per the snapshot-date convention. MRR is a
+    balance, not a flow: it is what the business is earning at an instant, not
+    what it earned across the month. This is the single most common source of
+    confusion with revenue, which is a flow.
+  proration: >
+    None. A customer who upgrades on the 15th contributes their full new amount
+    to month-end MRR, not a half-month blend. Prorating MRR turns a balance into
+    a flow and breaks the movement identity below.
+
+grain: >
+  One value per measurement instant, optionally decomposed. A per-customer MRR
+  is the same measure evaluated at customer grain.
+
+reads_entities:
+  - entity: contract-line
+    properties:
+      [amount, currency, fx_rate, fx_rate_date, start_date, end_date,
+       term_months, billing_frequency, is_recurring, discount_amount,
+       minimum_commitment_amount]
+  - entity: invoice-line
+    properties:
+      [amount, currency, fx_rate, fx_rate_date, service_period_start,
+       service_period_end, is_recurring, is_usage, credit_note_of]
+  - entity: subscription
+    properties: [start_date, service_end_date, status]
+  - entity: customer
+    properties: [customer_id]
+
+gated_by:
+  - d-revenue-basis
+  - d-contract-normalisation
+  - d-non-recurring-revenue
+  - d-pricing-model
+  - d-usage-recurring-basis
+  - d-fx-treatment
+  - d-churn-dating
+
+consumes: []
+
+variants:
+  - id: mrr-committed
+    selected_when: {decision: d-revenue-basis, equals: committed}
+    status: stable
+    formula: >
+      Sum of contract-line amounts normalised to a month, over lines where
+      is_recurring is true and the measurement instant falls within
+      [start_date, end_date].
+    assumptions:
+      - A contract record exists and is trustworthy.
+      - term_months is populated, or normalisation is undefined.
+      - Billing timing is irrelevant; annual prepay and monthly billing give the
+        same answer.
+
+  - id: mrr-billed
+    selected_when: {decision: d-revenue-basis, equals: billed}
+    status: stable
+    formula: >
+      Sum of invoice-line amounts normalised to a month, over lines where
+      is_recurring is true and the measurement instant falls within
+      [service_period_start, service_period_end], net of credit notes applied
+      to their original service period.
+    assumptions:
+      - Service period, not issue date, defines membership. Using issue_date
+        makes annual prepay appear as a twelve-fold spike.
+      - Customers between invoices may show zero MRR without having churned.
+
+  - id: mrr-recognized
+    selected_when: {decision: d-revenue-basis, equals: recognized}
+    status: stable
+    formula: >
+      Recurring revenue recognised for the month under the applicable policy.
+      The recognition schedule is referenced, not defined here. See ADR-0001.
+    assumptions:
+      - A recognition schedule exists outside this ontology.
+      - MRR and deferred revenue stop being independently derivable from each
+        other.
+
+  - id: mrr-usage-floor
+    selected_when: {decision: d-pricing-model, in: [usage-based, hybrid]}
+    status: stable
+    formula: >
+      Applied on top of the selected revenue-basis variant. For consumption
+      revenue units, the recurring amount is the floor established by
+      d-usage-recurring-basis; consumption above the floor is excluded from MRR
+      entirely. For hybrid businesses, the floor applies only to the usage
+      component.
+    assumptions:
+      - The floor is recomputed each period unless the binding says otherwise.
+      - Variable revenue above the floor is reported separately as usage
+        revenue, never folded into MRR.
+
+decomposable_by: [customer, segment, country, product, currency, cohort]
+
+relations:
+  - {type: contrastWith, target: arr}
+  - {type: contrastWith, concept: Recognized revenue}
+
+components:
+  - id: new-mrr
+    title: New MRR
+    tier: 2
+    relation: componentOf
+    definition: >
+      MRR from customers who had no MRR in the prior period and are not within
+      the dormancy window of a prior subscription.
+
+  - id: contraction-mrr
+    title: Contraction MRR
+    tier: 2
+    relation: componentOf
+    definition: >
+      Decrease in MRR from customers who retain some MRR. A customer falling to
+      zero is churn, not contraction.
+
+  - id: reactivation-mrr
+    title: Reactivation MRR
+    tier: 2
+    relation: componentOf
+    definition: >
+      MRR from customers returning within dormancy_window_days of a prior
+      subscription. Beyond that window they are new.
+
+  - id: net-new-mrr
+    title: Net New MRR
+    tier: 2
+    relation: derivedFrom
+    definition: >
+      New + Expansion + Reactivation - Contraction - Churned. The movement
+      identity: closing MRR minus opening MRR must equal Net New MRR exactly.
+      A residual means a component is missing or double-counted, and is the
+      fastest available test that an MRR implementation is correct.
+
+pitfalls:
+  - >
+    MRR is a balance and revenue is a flow. Reconciling MRR against the P&L
+    line for line will never work and is not supposed to.
+  - >
+    The movement identity is the test. If closing minus opening does not equal
+    net new MRR, stop and find the leak before trusting any retention metric
+    built on top.
+  - >
+    Mid-period upgrades followed by mid-period downgrades net to zero at
+    month-end under point-in-time measurement, hiding real churn risk. Decompose
+    by customer when investigating, never rely on the aggregate.
+  - >
+    Annualising MRR to get ARR assumes twelve identical months. For a business
+    with meaningful seasonality or usage revenue this is an assumption, not an
+    identity.

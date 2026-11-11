@@ -9,11 +9,19 @@ this file is the running journal and the list of open questions.
 - Delete the leftover `.gitkeep` files in `src/entities`, `src/metrics`,
   `src/schema`, `tools`, `build/*` and `examples/*` (`git rm` them; the sandbox
   cannot).
-- Write the JSON Schema for decisions, entities and metrics in `src/schema/` and
-  wire up CI validation. Must enforce that a derived metric's `consumes` names a
-  specific variant (ADR-0005).
+- Write `tools/validate.py` and wire up CI. The cross-file checks it owns are
+  listed in the `description` fields of `src/schema/*.json`. References to the
+  enumerated-but-unwritten decisions and metrics are warnings, not errors.
+- When `cac` is written, add it to `d-fx-treatment.gates`: it reads `cost`,
+  which carries FX properties.
+- Move the parameters typed provisionally in `binding.schema.json`
+  (`max_pause_days`, `dormancy_window_days`, `usage_floor_recompute_months`,
+  `opportunity_max_age_months`, `fiscal_year_start_month`, `ltv_discount_rate`,
+  `cac_payback_threshold_months`) onto their owning nodes as those are written.
 - Replace the illustrative "97% to 112%" NRR range in the README with the real
-  figure once the Phase 4 worked example computes it.
+  figure once the worked example computes it. Now that cohort and
+  period-over-period are separate metrics, that example is the cleanest possible
+  demonstration: the same data, two bases, two defensible answers.
 
 ## Open questions
 
@@ -27,8 +35,94 @@ this file is the running journal and the list of open questions.
 - Is `usage_floor_percentile: 10` the right value, or 25? Needs testing against
   real consumption data before v0.1 ships. (Only applies when a user selects
   trailing-percentile; it is no longer the default.)
-- Does the trailing floor recompute every month, or reset only on contract
-  events? Monthly recomputation is assumed but not yet stated in the model.
+- Fixture inconsistencies found while writing the schemas, left unedited
+  pending review (the schemas accept all of them as written):
+- Tier 2 metrics without a parent live in a "family index file" whose format is
+  not yet defined, so it has no schema.
+
+## 2026-09-24
+
+- **JSON Schemas written** in `src/schema/`: `common`, `entity`, `metric`,
+  `decision`, `binding` (draft 2020-12, closed objects). All 13 fixtures
+  validate unchanged. `consumes` entries must be `{metric, variant}` objects, so
+  a bare metric id fails at schema level (ADR-0005). `selected_when` and
+  `applies_when` share one condition shape (`decision` + exactly one of
+  `equals`/`in`). A non-draft variant must carry `selected_when`.
+- **Binding shape agreed**: `answers` (option + whether the default was
+  accepted), `parameters`, `defaults` (conventions). Resolved variants are not
+  stored. Conventions agreed in review:
+  - no restriction to one variant per metric: `consumes` accepts a single
+    variant id, a set of ids, or `selected` (which may resolve to a set)
+  - `subscription.yaml` updated: pause-to-churn now reads `max_pause_days`;
+    new `pause_start_date` property and a pitfall on backdated churn
+- **Stale references fixed.** `invoice` → `invoice-line` in `d-revenue-basis`,
+  `d-usage-recurring-basis` and `d-fx-treatment`. `d-fx-treatment` now gates
+  the four retention metrics instead of `nrr`/`grr`, and no longer relates to
+  the removed `d-retention-basis`. `cost` and `d-fx-treatment` now reference
+  each other, since `cost` already carried FX properties gated on it.
+- **ADR-0006: retention is four Tier 1 metrics**, amending ADR-0001. Tier 1 is
+  now 14. Churned MRR and Expansion MRR moved out of `mrr.yaml` components into
+  their own files, as ADR-0001 always specified; both are `draft`, carrying only
+  their existing definition, gates and `componentOf: mrr`. The metric schema
+  now requires only identity fields and a definition for a `draft` metric.
+- **`selected_when: always`** added for a variant no decision selects.
+  `net-retention-cohort-all` uses it instead of a condition on every option of
+  the labels-only `d-retention-naming`.
+- **Labels follow the naming default.** `net-retention-cohort` is now
+  `NRR (cohort)`, the `synonymous` default's label, not `NDR`. Where
+  `label_decided_by` is set, the validator will require `preferred_label` to
+  match the default option's label.
+- **`gated_by` means "affects this metric"**, matching how the fixtures use it:
+  variant selection, computation, population or label. The how lives on the
+  decision's `gates` entry. The validator will check the two are symmetric.
+  To settle with `d-churn-dating`: `mrr` lists it in `gated_by`, but the
+  decisions README table does not list MRR among what it gates.
+- **One condition syntax.** `required_when` on parameters and entity
+  properties now uses the structured condition, which gains `not_equals` and
+  `not_in`. A parameter names its own decision explicitly.
+- **`requires_entities` and `requires_entity_properties` merged** into
+  `reads_entities` on decisions, mirroring metrics; `properties` optional.
+- **`decimal` vs `number` kept deliberately**: entity properties are stored
+  amounts, parameters are settings. Documented on the parameter definition.
+- **Relations are metric to metric.** `mrr` drops `derivedFrom: contract-line`
+  (already covered, more completely, by `reads_entities`). Recognized revenue
+  becomes `contrastWith` a free-text `concept`, since ADR-0001 keeps it out of
+  the ontology.
+- Open: `net-retention-cohort-segmented` may be a decomposition (it overlaps
+  `decomposable_by`) rather than a variant. Settle when retention is written.
+  - customer M&A restates history by default (unsourced; see rationale)
+  - a pause becomes churn after `max_pause_days`, dated at the pause start
+  - `dormancy_window_days` now only separates reactivation from new
+  - the usage floor recomputes every 3 months over the 12-month window
+  - opportunities go stale after 3 months; treatment left to
+    `d-win-rate-denominator`
+  - grain fallback is a policy flag (`allow_grain_fallback`, default true),
+    not a recorded count
+  - capitalised commissions left untyped pending `d-cac-scope`
+
+- **Meta-model closed.** Metric shape defined in `src/metrics/README.md`:
+  tier, family, definition, formula, unit, time_semantics, reads_entities,
+  gated_by, consumes, variants with `selected_when`, decomposable_by, relations,
+  components, benchmarks, pitfalls, sources.
+- `mrr` written with four variants (committed, billed, recognised, usage-floor)
+  and all five movement components nested as Tier 2 stubs.
+- **The movement identity is the correctness test.** Closing MRR minus opening
+  MRR must equal Net New MRR exactly. A residual means a component is missing or
+  double-counted, and it is the fastest available check that an implementation
+  is right before anything is built on top.
+- `net-retention-cohort` written as the second worked example; the three
+  retention siblings follow the same shape. Carries `label_decided_by:
+  d-retention-naming` so the emitted label follows the binding.
+- `consumes: [{metric: mrr, variant: selected}]` introduced for the case where a
+  metric takes whichever variant the binding chose, as against a named one.
+- **CLAUDE.md rewritten** as the handoff document: all rules learned since the
+  scaffold, plus a "what not to automate" section and an ordered next-steps list.
+- Recreated `src/metrics`, `src/schema`, `tools` and `build/*`, which git had
+  dropped when the `.gitkeep` files were removed. README licence link repointed
+  at `LICENSE`.
+- **Handoff point.** Everything after this is mechanical enough for Claude Code,
+  with the emitters and synthetic-data work suited to an autonomous loop. Metric
+  and decision content stays interactive.
 
 ## 2026-09-04 (cross-decision constraints)
 

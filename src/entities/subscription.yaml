@@ -47,7 +47,14 @@ properties:
     description: >
       `paused` exists because seasonal businesses genuinely pause. Whether a
       paused subscription counts as churned is a binding choice; the default
-      convention treats a pause exceeding `dormancy_window_days` as churn.
+      convention treats a pause exceeding `max_pause_days` as churn, dated at
+      the start of the pause.
+  - name: pause_start_date
+    type: date
+    required: false
+    description: >
+      First day of the current pause. Required when status is paused; the
+      churn date if the pause exceeds max_pause_days.
   - name: end_reason
     type: enum
     values: [voluntary, non-payment, downgrade-to-free, migrated, unknown]
@@ -69,3 +76,8 @@ pitfalls:
     Migrations between plans or entities are frequently recorded as a cancel plus
     a new subscription. Left untreated they appear as churn plus new business,
     inflating both. `end_reason: migrated` is the hook for excluding them.
+  - >
+    A pause that outlives `max_pause_days` becomes churn dated at the pause
+    start, so churn lands in a period that may already have been reported.
+    Closed periods can change after the fact; label any figure that includes
+    open pauses as provisional.

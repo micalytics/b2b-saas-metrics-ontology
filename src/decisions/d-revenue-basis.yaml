@@ -65,10 +65,10 @@ gates:
   - metric: arr
     variants: [arr-committed, arr-billed, arr-recognized]
 
-requires_entities:
-  - contract-line
-  - invoice
-  - subscription
+reads_entities:
+  - entity: contract-line
+  - entity: invoice-line
+  - entity: subscription
 
 related_decisions:
   - d-contract-normalisation

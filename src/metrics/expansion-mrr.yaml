@@ -1,0 +1,19 @@
+id: expansion-mrr
+type: metric
+tier: 1
+family: revenue-movement
+title: Expansion MRR
+preferred_label: Expansion MRR
+status: draft
+
+definition: >
+  Increase in MRR from customers who had MRR in the prior period. Includes
+  seat growth, price uplift, upsell and cross-sell unless the binding
+  separates them.
+
+gated_by:
+  - d-fx-treatment
+  - d-usage-recurring-basis
+
+relations:
+  - {type: componentOf, target: mrr}

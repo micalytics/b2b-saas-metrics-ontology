@@ -1,0 +1,228 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "metric.schema.json",
+  "title": "Metric",
+  "description": "A Tier 1 measure over entities, carrying variants. Tier 2 metrics have no file of their own: they are `components` of a Tier 1 parent or entries in a family index. See ADR-0001 and src/metrics/README.md.",
+
+  "type": "object",
+  "required": ["id", "type", "tier", "family", "title", "preferred_label", "status", "definition"],
+  "if": {"properties": {"status": {"const": "draft"}}},
+  "else": {
+    "description": "A draft metric is a deliberately incomplete branch open to contribution; it carries identity and a definition. Anything else must have the full Tier 1 treatment.",
+    "required": [
+      "aliases", "formula", "unit", "time_semantics", "grain",
+      "reads_entities", "gated_by", "consumes", "variants"
+    ]
+  },
+  "properties": {
+    "id": {"$ref": "common.schema.json#/$defs/kebab_id"},
+    "type": {"const": "metric"},
+    "tier": {
+      "description": "Only Tier 1 metrics get a file. Promoting a Tier 2 metric needs an ADR.",
+      "const": 1
+    },
+    "family": {
+      "enum": ["revenue-base", "revenue-movement", "retention", "unit-economics", "commercial-efficiency"]
+    },
+    "title": {"$ref": "common.schema.json#/$defs/prose"},
+    "preferred_label": {
+      "description": "Where label_decided_by is set, this must equal the label that decision's default option gives this metric (validator), so the file shows the market-default name.",
+      "$ref": "common.schema.json#/$defs/prose"
+    },
+    "label_decided_by": {
+      "description": "A decision that sets the display label via its options' `labels`. Validator: that decision gates this metric with `affects: preferred_label`, and preferred_label equals its default option's label.",
+      "$ref": "common.schema.json#/$defs/decision_id"
+    },
+    "aliases": {
+      "description": "Every name the metric is known by, for glossary matching.",
+      "type": "array",
+      "minItems": 1,
+      "items": {"$ref": "common.schema.json#/$defs/prose"},
+      "uniqueItems": true
+    },
+    "status": {"$ref": "common.schema.json#/$defs/status"},
+
+    "definition": {"$ref": "common.schema.json#/$defs/prose"},
+    "formula": {
+      "description": "Variant-independent skeleton. Variants refine it.",
+      "$ref": "common.schema.json#/$defs/prose"
+    },
+    "unit": {"enum": ["currency", "ratio", "percentage", "count", "duration"]},
+
+    "time_semantics": {
+      "description": "Not optional. A metric that does not pin these down is not finished.",
+      "type": "object",
+      "required": ["basis", "as_of", "proration"],
+      "properties": {
+        "basis": {"enum": ["point-in-time", "period"]},
+        "as_of": {"$ref": "common.schema.json#/$defs/prose"},
+        "proration": {"$ref": "common.schema.json#/$defs/prose"}
+      },
+      "additionalProperties": false
+    },
+    "grain": {"$ref": "common.schema.json#/$defs/prose"},
+
+    "reads_entities": {
+      "description": "Validator: each entity exists and carries each listed property.",
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": ["entity", "properties"],
+        "properties": {
+          "entity": {"$ref": "common.schema.json#/$defs/kebab_id"},
+          "properties": {
+            "type": "array",
+            "minItems": 1,
+            "items": {"$ref": "common.schema.json#/$defs/snake_id"},
+            "uniqueItems": true
+          }
+        },
+        "additionalProperties": false
+      }
+    },
+
+    "gated_by": {
+      "description": "Every decision that affects this metric in any way: selecting a variant, changing a computation, the population, or a label. How it affects the metric is recorded on the decision's `gates` entry, not here. Validator: each exists (warning if enumerated but unwritten); every decision named in a variant's selected_when appears here; and gated_by is symmetric with decisions' `gates` — a decision gates this metric if and only if it is listed here.",
+      "type": "array",
+      "items": {"$ref": "common.schema.json#/$defs/decision_id"},
+      "uniqueItems": true
+    },
+
+    "consumes": {
+      "description": "ADR-0005. Upstream metrics this one reads, always qualified by variant; a bare metric id is a schema error. Empty only if nothing upstream.",
+      "type": "array",
+      "items": {"$ref": "#/$defs/consumption"}
+    },
+
+    "variants": {
+      "description": "Any number of a metric's variants may be selected at once (mrr-usage-floor applies on top of the revenue-basis variant). Selection is never computed; it follows from the binding's answers. Validator: variant ids are unique, start with `<metric id>-`, and every non-draft variant is reachable by some combination of answers.",
+      "type": "array",
+      "minItems": 1,
+      "items": {"$ref": "#/$defs/variant"}
+    },
+
+    "parameters": {
+      "type": "array",
+      "items": {"$ref": "common.schema.json#/$defs/parameter"}
+    },
+
+    "decomposable_by": {
+      "description": "Dimensions the metric can legitimately be split by.",
+      "$ref": "common.schema.json#/$defs/id_list"
+    },
+
+    "relations": {
+      "description": "Metric-to-metric relations. What a metric reads from entities belongs in reads_entities, not here. The one exception is `contrastWith` a `concept` outside the ontology, written as free text, for a common confusion with something this ontology deliberately does not model (recognized revenue, ADR-0001). Validator: a `target` is an existing metric or Tier 2 component (warning if enumerated but unwritten).",
+      "type": "array",
+      "items": {
+        "oneOf": [
+          {
+            "type": "object",
+            "required": ["type", "target"],
+            "properties": {
+              "type": {"enum": ["componentOf", "derivedFrom", "contrastWith"]},
+              "target": {"$ref": "common.schema.json#/$defs/kebab_id"}
+            },
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "required": ["type", "concept"],
+            "properties": {
+              "type": {"const": "contrastWith"},
+              "concept": {"$ref": "common.schema.json#/$defs/prose"}
+            },
+            "additionalProperties": false
+          }
+        ]
+      }
+    },
+
+    "components": {
+      "description": "Tier 2 stubs belonging to this metric. No variant tree, no own file.",
+      "type": "array",
+      "items": {"$ref": "#/$defs/component"}
+    },
+
+    "benchmarks": {
+      "description": "Sourced or omitted. An unsourced range will be quoted.",
+      "type": "array",
+      "items": {"$ref": "#/$defs/benchmark"}
+    },
+
+    "pitfalls": {"$ref": "common.schema.json#/$defs/prose_list"},
+    "sources": {"$ref": "common.schema.json#/$defs/sources"}
+  },
+  "additionalProperties": false,
+
+  "$defs": {
+    "consumption": {
+      "description": "`variant` is one variant id, a set of variant ids, or `selected` for whatever set the binding selected for that metric. Nothing restricts a metric to one variant at a time. Validator: every named variant belongs to the named metric.",
+      "type": "object",
+      "required": ["metric", "variant"],
+      "properties": {
+        "metric": {"$ref": "common.schema.json#/$defs/kebab_id"},
+        "variant": {
+          "anyOf": [
+            {"$ref": "common.schema.json#/$defs/kebab_id"},
+            {
+              "type": "array",
+              "items": {"$ref": "common.schema.json#/$defs/kebab_id"},
+              "minItems": 1,
+              "uniqueItems": true
+            }
+          ]
+        }
+      },
+      "additionalProperties": false
+    },
+
+    "variant": {
+      "type": "object",
+      "required": ["id", "status", "formula", "assumptions"],
+      "properties": {
+        "id": {"$ref": "common.schema.json#/$defs/kebab_id"},
+        "selected_when": {
+          "description": "`always` for a variant no decision selects — it applies under every binding. Otherwise a condition on an earlier answer. Absent only on a draft variant, where it means not yet reachable.",
+          "anyOf": [
+            {"const": "always"},
+            {"$ref": "common.schema.json#/$defs/condition"}
+          ]
+        },
+        "status": {"$ref": "common.schema.json#/$defs/status"},
+        "formula": {"$ref": "common.schema.json#/$defs/prose"},
+        "assumptions": {
+          "type": "array",
+          "minItems": 1,
+          "items": {"$ref": "common.schema.json#/$defs/prose"}
+        }
+      },
+      "additionalProperties": false,
+      "if": {"properties": {"status": {"const": "draft"}}},
+      "else": {"required": ["selected_when"]}
+    },
+
+    "component": {
+      "type": "object",
+      "required": ["id", "title", "tier", "relation", "definition"],
+      "properties": {
+        "id": {"$ref": "common.schema.json#/$defs/kebab_id"},
+        "title": {"$ref": "common.schema.json#/$defs/prose"},
+        "tier": {"const": 2},
+        "relation": {"enum": ["componentOf", "derivedFrom"]},
+        "definition": {"$ref": "common.schema.json#/$defs/prose"}
+      },
+      "additionalProperties": false
+    },
+
+    "benchmark": {
+      "description": "Shape provisional: no fixture carries a benchmark yet. The source is the only hard requirement.",
+      "type": "object",
+      "required": ["source"],
+      "properties": {
+        "source": {"$ref": "common.schema.json#/$defs/source"}
+      }
+    }
+  }
+}

@@ -114,7 +114,7 @@ parameters:
     type: number
     default: 10
     description: Percentile of the trailing window used as the floor.
-    required_when: option == trailing-percentile
+    required_when: {decision: d-usage-recurring-basis, equals: trailing-percentile}
 
 gates:
   - metric: mrr
@@ -123,9 +123,9 @@ gates:
   - metric: expansion-mrr
   - metric: churned-mrr
 
-requires_entities:
-  - contract-line
-  - invoice
+reads_entities:
+  - entity: contract-line
+  - entity: invoice-line
 
 related_decisions:
   - d-pricing-model

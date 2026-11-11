@@ -1,0 +1,138 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "decision.schema.json",
+  "title": "Decision",
+  "description": "A branching choice that selects between named metric variants. Answering every applicable decision produces a binding. See ADR-0004 and src/decisions/README.md.",
+
+  "type": "object",
+  "required": ["id", "type", "title", "status", "question", "why_it_matters", "options", "default", "gates"],
+  "properties": {
+    "id": {"$ref": "common.schema.json#/$defs/decision_id"},
+    "type": {"const": "decision"},
+    "title": {"$ref": "common.schema.json#/$defs/prose"},
+    "status": {"$ref": "common.schema.json#/$defs/status"},
+
+    "applies_when": {
+      "description": "The traversal is stateful: this decision is asked only when an earlier answer matches. Absent means always asked. Validator: the referenced decision is not this one, the applies_when graph over all decisions is acyclic (which yields the asking order), and the referenced options exist.",
+      "$ref": "common.schema.json#/$defs/condition"
+    },
+
+    "question": {"$ref": "common.schema.json#/$defs/prose"},
+    "why_it_matters": {"$ref": "common.schema.json#/$defs/prose"},
+
+    "options": {
+      "description": "Validator: option ids are unique within the decision.",
+      "type": "array",
+      "minItems": 2,
+      "items": {"$ref": "#/$defs/option"}
+    },
+
+    "default": {
+      "description": "Prevailing market practice, not the most defensible option. Validator: one of this decision's option ids.",
+      "$ref": "common.schema.json#/$defs/kebab_id"
+    },
+    "default_rationale": {
+      "description": "Required in spirit wherever the default is not the strongest option: says why the market is wrong. Not machine-checkable.",
+      "$ref": "common.schema.json#/$defs/prose"
+    },
+
+    "parameters": {
+      "description": "Parameters this decision reads. Validator: parameter ids are unique across the ontology.",
+      "type": "array",
+      "items": {"$ref": "common.schema.json#/$defs/parameter"}
+    },
+
+    "gates": {
+      "description": "Every metric this decision affects, and how (variants, affects, note). Validator: symmetric with each metric's gated_by.",
+      "type": "array",
+      "minItems": 1,
+      "items": {"$ref": "#/$defs/gate"}
+    },
+
+    "reads_entities": {
+      "description": "Entities this decision needs, mirroring a metric's reads_entities. `properties` is optional until someone pins down which ones the decision reads. Validator: each entity exists and carries each named property, and the list is symmetric with the entities' read_by_decisions.",
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["entity"],
+        "properties": {
+          "entity": {"$ref": "common.schema.json#/$defs/kebab_id"},
+          "properties": {
+            "type": "array",
+            "items": {"$ref": "common.schema.json#/$defs/snake_id"},
+            "minItems": 1,
+            "uniqueItems": true
+          }
+        },
+        "additionalProperties": false
+      }
+    },
+
+    "related_decisions": {
+      "type": "array",
+      "items": {"$ref": "common.schema.json#/$defs/decision_id"},
+      "uniqueItems": true
+    },
+
+    "pitfalls": {"$ref": "common.schema.json#/$defs/prose_list"},
+    "sources": {"$ref": "common.schema.json#/$defs/sources"}
+  },
+  "additionalProperties": false,
+
+  "$defs": {
+    "option": {
+      "type": "object",
+      "required": ["id", "label", "summary", "implies"],
+      "properties": {
+        "id": {"$ref": "common.schema.json#/$defs/kebab_id"},
+        "label": {"$ref": "common.schema.json#/$defs/prose"},
+        "summary": {"$ref": "common.schema.json#/$defs/prose"},
+        "implies": {
+          "type": "array",
+          "minItems": 1,
+          "items": {"$ref": "common.schema.json#/$defs/prose"}
+        },
+        "common_in": {"$ref": "common.schema.json#/$defs/prose"},
+        "used_by": {"$ref": "common.schema.json#/$defs/prose"},
+        "emits": {
+          "description": "False when choosing this option removes the gated machinery from the bundle entirely (single-currency drops FX properties).",
+          "type": "boolean"
+        },
+        "parameters": {
+          "description": "Ids of this decision's parameters that the option uses. Validator: each is declared in the decision's parameters block.",
+          "type": "array",
+          "items": {"$ref": "common.schema.json#/$defs/snake_id"},
+          "uniqueItems": true
+        },
+        "labels": {
+          "description": "Metric id to display label, for decisions that change names but never formulas. Validator: keys are existing metric ids.",
+          "type": "object",
+          "propertyNames": {"$ref": "common.schema.json#/$defs/kebab_id"},
+          "additionalProperties": {"$ref": "common.schema.json#/$defs/prose"}
+        }
+      },
+      "additionalProperties": false
+    },
+
+    "gate": {
+      "description": "Validator: the metric exists (warning if enumerated but unwritten); each listed variant belongs to it.",
+      "type": "object",
+      "required": ["metric"],
+      "properties": {
+        "metric": {"$ref": "common.schema.json#/$defs/kebab_id"},
+        "variants": {
+          "type": "array",
+          "items": {"$ref": "common.schema.json#/$defs/kebab_id"},
+          "minItems": 1,
+          "uniqueItems": true
+        },
+        "affects": {
+          "description": "What the decision changes when it does not select variants.",
+          "enum": ["preferred_label"]
+        },
+        "note": {"$ref": "common.schema.json#/$defs/prose"}
+      },
+      "additionalProperties": false
+    }
+  }
+}

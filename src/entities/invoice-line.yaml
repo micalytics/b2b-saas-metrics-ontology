@@ -51,11 +51,11 @@ properties:
   - name: fx_rate
     type: decimal
     required: false
-    required_when: d-fx-treatment != single-currency
+    required_when: {decision: d-fx-treatment, not_equals: single-currency}
   - name: fx_rate_date
     type: date
     required: false
-    required_when: d-fx-treatment != single-currency
+    required_when: {decision: d-fx-treatment, not_equals: single-currency}
   - name: is_usage
     type: boolean
     required: true

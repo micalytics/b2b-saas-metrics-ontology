@@ -1,6 +1,7 @@
 # ADR-0001: Scope of v0.1
 
-**Status:** Accepted — 2026-09-04
+**Status:** Accepted — 2026-09-04. Amended by ADR-0006: retention is four
+Tier 1 metrics, bringing Tier 1 to 14.
 
 ## Context
 

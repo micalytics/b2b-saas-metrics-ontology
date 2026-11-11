@@ -1,0 +1,110 @@
+id: net-retention-cohort
+type: metric
+tier: 1
+family: retention
+title: Net retention, cohort basis
+preferred_label: NRR (cohort)
+label_decided_by: d-retention-naming
+aliases:
+  [NDR, Net Dollar Retention, cohort NRR, net revenue retention (cohort basis),
+   dollar-based net retention]
+status: stable
+
+definition: >
+  Of the recurring revenue held by a fixed set of customers at the start of a
+  window, how much that same set holds at the end of it — including expansion,
+  contraction and churn within the set, and excluding anything from customers
+  who joined after the window opened.
+
+formula: >
+  Closing MRR of the T0 cohort / Opening MRR of the T0 cohort.
+  Cohort membership is fixed at T0 and never revised.
+
+unit: ratio
+
+time_semantics:
+  basis: period
+  as_of: >
+    Two instants: T0 at the start of the window and T1 at its end, both taken
+    at the snapshot date. The window length is a parameter, conventionally
+    twelve months.
+  proration: >
+    None. Both endpoints are point-in-time MRR balances, so the metric inherits
+    MRR's no-proration rule.
+
+grain: >
+  One value per cohort per window. A single headline figure is one cohort; a
+  cohort table is the same measure evaluated repeatedly.
+
+reads_entities:
+  - entity: customer
+    properties: [customer_id, grain]
+  - entity: subscription
+    properties:
+      [start_date, cancellation_notice_date, service_end_date,
+       last_paid_period_end, status]
+
+gated_by:
+  - d-customer-grain
+  - d-churn-dating
+  - d-fx-treatment
+  - d-retention-naming
+
+consumes:
+  - {metric: mrr, variant: selected}
+
+variants:
+  - id: net-retention-cohort-all
+    selected_when: always
+    status: stable
+    formula: >
+      All customers with MRR greater than zero at T0 form the cohort.
+    assumptions:
+      - Customers acquired after T0 are excluded entirely, including their
+        expansion.
+      - A customer churning and returning within the window nets out; the
+        cohort does not notice.
+
+  - id: net-retention-cohort-segmented
+    status: draft
+    formula: >
+      Cohort restricted to a segment, country or acquisition vintage fixed at
+      T0. Segment is fixed at T0 and does not follow customers who move between
+      segments during the window.
+    assumptions:
+      - Segment reassignment mid-window is ignored by design. A customer
+        upgrading from SMB to Mid-Market stays in the SMB cohort, which is what
+        makes vintage analysis meaningful.
+
+parameters:
+  - id: retention_window_months
+    type: integer
+    default: 12
+
+decomposable_by: [segment, country, product, cohort-vintage]
+
+relations:
+  - {type: contrastWith, target: net-retention-period}
+  - {type: contrastWith, target: gross-retention-cohort}
+  - {type: derivedFrom, target: mrr}
+
+benchmarks: []
+
+pitfalls:
+  - >
+    Cohort and period-over-period net retention answer different questions and
+    will disagree on the same data, frequently by ten points or more. A fast
+    growing business shows higher period-over-period retention because recent
+    expansion from recent customers lands in the numerator. Neither figure is
+    wrong; publishing one without naming the basis is.
+  - >
+    The customer grain moves this number substantially. At group-parent grain a
+    subsidiary leaving is contraction; at billing-account grain it is churn.
+    Comparing against a benchmark computed at a different grain is meaningless.
+  - >
+    Almost no published benchmark states its basis, its grain, or its window.
+    Treat any external retention figure as unspecified until proven otherwise.
+  - >
+    Excluding churned customers from the denominator inflates this metric
+    dramatically and is a common implementation error. The T0 cohort includes
+    everyone who was there, including everyone who subsequently left.

@@ -1,6 +1,7 @@
 # Working rules for this repository
 
-Read this before changing anything under `src/`.
+Read this before changing anything under `src/`. The ADRs in `docs/adr/` carry
+the reasoning; this file carries the rules that follow from it.
 
 ## The one rule that matters
 
@@ -8,58 +9,160 @@ Read this before changing anything under `src/`.
 `tools/` and must never be hand-edited. If a bundle is wrong, fix the YAML and
 regenerate. A PR that edits `build/` without a matching `src/` change is wrong.
 
-## Node types
+`build/` is committed deliberately, so that anyone can import a bundle without
+running the toolchain. CI regenerates and fails on drift. See ADR-0003.
 
-Exactly three, and nothing else gets invented without an ADR:
+## Three node types, and nothing else
 
-- **Entity** (`src/entities/`) — things that exist. Carries properties, not formulas.
-- **Metric** (`src/metrics/`) — a measure over entities. Carries variants.
-- **Decision** (`src/decisions/`) — a choice that gates which variants are valid.
+| Node | Directory | What it is |
+|---|---|---|
+| **Entity** | `src/entities/` | Things that exist. Properties, no formulas. |
+| **Metric** | `src/metrics/` | A measure over entities. Carries variants. |
+| **Decision** | `src/decisions/` | A choice that gates which variants are valid. |
 
 If something feels like a metric but has no formula over the entity model, no
-competing business definitions and no benchmark range, it is probably an entity
-property or a decision. FX conversion is the canonical example: it is a decision
-plus properties on Contract Line and Invoice, not a metric.
+competing business definitions and no benchmark range, it is an entity property
+or a decision. FX conversion is the canonical example — a decision plus
+properties on contract-line and invoice-line, never a metric. See ADR-0004.
+
+## Decision, parameter, or convention
+
+Three things that are easily conflated. Getting this wrong is how a 14-question
+guided flow becomes a 40-question one nobody finishes.
+
+- **Decision** — a branching choice selecting between named variants. Goes in
+  `src/decisions/`.
+- **Parameter** — a numeric knob. Same model, different number. Lives in the
+  binding's `parameters:` block. Example: `dormancy_window_days`.
+- **Convention** — a default nobody argues about, overridable by those who do.
+  Not asked in the guided flow. Example: period grain is the calendar month.
+
+Demote aggressively. The first enumeration produced 17 decisions; demoting the
+parameters and conventions brought it to 14 without losing anything a user needs
+to be asked.
+
+## Defaults follow the market, not the best answer
+
+**A default reflects prevailing practice, not what is most defensible.** Where
+they diverge, the default follows the market and the node documents why the
+market is wrong, in a `default_rationale` field.
+
+The live example: `d-usage-recurring-basis` defaults to `last-period-annualised`
+because that is what most public usage-based companies do, even though it is the
+most inflationary of the five options. The weakness is documented, not hidden by
+picking a different default.
+
+This rule exists because the alternative is an ontology whose defaults quietly
+encode one practitioner's judgement — the failure this project was built to
+correct.
+
+## Constraints resolve at composition, never by prohibition
+
+When two decisions can select overlapping things, do not forbid the overlap.
+Both answers are usually individually defensible; the error appears only where a
+derived metric consumes both.
+
+The pattern, from ADR-0005: customer success can legitimately sit in COGS *and*
+in CAC, but a metric reading both double-counts. The resolution is two
+`gross-margin` variants — `gross-margin-reported` for the P&L and Rule of 40,
+`gross-margin-unit-economics` for LTV and CAC Payback — not a rule against
+selecting CS twice.
+
+Expect more of these. Capitalised commissions and professional services revenue
+are the next likely candidates. Handle them the same way.
+
+## The traversal is stateful
+
+Decisions may carry `applies_when` pointing at an earlier answer.
+`d-pricing-model` is asked first and gates `d-usage-recurring-basis`; a
+subscription-only company answers 13 questions, a consumption business 14.
 
 ## Tier discipline
 
-- **Tier 1** metrics get the full treatment: variants, assumptions, typed inputs,
-  time semantics, pitfalls, benchmarks.
-- **Tier 2** metrics get a stub: name, aliases, one-line definition, and a
-  `componentOf` / `derivedFrom` relation to a Tier 1 metric or a metric family.
-  No variant tree.
+- **Tier 1** gets the full treatment: variants, assumptions, typed inputs, time
+  semantics, pitfalls, benchmarks.
+- **Tier 2** gets a stub nested under its Tier 1 parent as a `components` entry,
+  or attached to its family where no parent exists. No variant tree, no own file.
 
-Do not silently promote a Tier 2 metric to Tier 1. That is an ADR-worthy change
-to scope.
+Promoting a Tier 2 metric is a scope change and needs an ADR.
 
 ## Every metric entry must answer
 
-1. What entities does it read, and at what grain?
-2. Is it point-in-time or period-based?
-3. What happens under annual prepay, mid-period changes, and proration?
+1. Which entities does it read, and at what grain?
+2. Is it point-in-time or period-based, as of which instant, and what happens to
+   mid-period changes?
+3. What happens under annual prepay, usage revenue, and multi-currency?
 4. Which decisions gate its variants?
 5. What does it get confused with?
 
-A metric definition that does not pin down time semantics is not finished.
+**A metric that does not pin down time semantics is not finished.** Most
+disagreements that look like formula disputes are time-semantics disputes.
 
-## Status field
+## `consumes` names variants, never metrics
 
-Use OKF's `status: draft | stable | deprecated` honestly. `draft` is not a
-failure state — it marks a branch of the model that is deliberately incomplete
-and open to contribution. Usage-based pricing variants are `draft` in v0.1.
+```yaml
+consumes:
+  - {metric: gross-margin, variant: gross-margin-unit-economics}
+```
+
+A derived metric reading a bare metric id is a validation error. This is what
+makes ADR-0005 checkable in CI rather than a warning nobody reads.
+`{variant: selected}` is permitted where the metric takes whichever variant the
+binding chose — MRR inside a retention metric, for instance.
 
 ## Conventions
 
-- Metric and decision filenames are kebab-case and match their `id`.
-- IDs are stable. Renaming an ID is a breaking change and needs a `log.md` entry.
-- Every claim about how a metric is "usually" defined needs a source, or it gets
+- Filenames are kebab-case and match the `id`. IDs are stable forever; renaming
+  one is a breaking change needing a `log.md` entry.
+- `status: draft | stable | deprecated`, used honestly. `draft` marks a branch
+  deliberately incomplete and open to contribution, not a failure.
+- Every claim about how a metric is "usually" defined needs a source, or gets
   phrased as an option rather than a norm.
-- No company-specific semantics. This is a generic reference ontology; anything
-  that only makes sense inside one company belongs in a binding under
-  `examples/`, not in `src/`.
+- Benchmarks need a source or they are omitted. An unsourced range will be
+  quoted.
+- **No company-specific semantics.** This is a generic reference ontology.
+  Anything that only makes sense inside one company belongs in a binding under
+  `examples/`.
+
+## What not to automate
+
+The emitters, schema, validator, CI and synthetic-data work are mechanical and
+suit an autonomous loop. **The ontology content does not.**
+
+"Done" for a decision node is *does this faithfully model how companies actually
+disagree*, which no test can check. A validator confirms well-formed YAML and
+that every gate points at a real metric. It cannot confirm that an option set
+reflects real practice, or that a distinction is one anybody actually makes.
+Content generated in bulk validates perfectly and is uniformly, subtly wrong —
+which is the exact failure this repo exists to correct.
+
+Write metric and decision content interactively, with a domain expert pushing
+back. Automate everything downstream of it.
 
 ## Before committing
 
-- `tools/validate.py` passes (schema + referential integrity)
-- `build/` is regenerated and in sync
+- `tools/validate.py` passes (schema, referential integrity, reachable variants)
+- `build/` regenerated and in sync
 - `log.md` has an entry if the change is structural
+
+## Where the project stands
+
+**Done:** scaffold, licences, ADR-0001..0006, prior-art survey, all 7 entities,
+4 of 14 decisions (`d-revenue-basis`, `d-fx-treatment`, `d-retention-naming`,
+`d-usage-recurring-basis`), the metric shape, `mrr` plus
+`net-retention-cohort` as worked examples, and `src/schema/*.json` for entity,
+metric, decision and binding. `churned-mrr` and `expansion-mrr` exist as
+`draft` files carrying a definition only.
+
+**Next, in order:**
+
+1. `tools/validate.py` + CI. This is the quality gate everything downstream
+   depends on.
+2. The remaining 10 decisions — interactively, not in bulk. The contested ones
+   are `d-cac-scope`, `d-cogs-scope`, `d-churn-dating` and `d-customer-grain`.
+3. The remaining 12 of 14 Tier 1 metrics (ADR-0006), same rule — including
+   the full treatment of the two drafts.
+4. Emitters: OKF, OWL+SKOS, OpenMetadata CSV, Knowledge Catalog JSON.
+5. Synthetic warehouse and the worked example proving cohort and
+   period-over-period retention diverge on identical data. That figure replaces
+   the illustrative range currently in the README.

@@ -1,0 +1,89 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "entity.schema.json",
+  "title": "Entity",
+  "description": "A thing that exists. Carries typed properties, never formulas. See ADR-0004 and src/entities/README.md.",
+
+  "type": "object",
+  "required": ["id", "type", "title", "status", "description", "grain", "properties"],
+  "properties": {
+    "id": {"$ref": "common.schema.json#/$defs/kebab_id"},
+    "type": {"const": "entity"},
+    "title": {"$ref": "common.schema.json#/$defs/prose"},
+    "status": {"$ref": "common.schema.json#/$defs/status"},
+    "description": {"$ref": "common.schema.json#/$defs/prose"},
+    "grain": {
+      "description": "What one row is.",
+      "$ref": "common.schema.json#/$defs/prose"
+    },
+
+    "derived": {
+      "description": "True for a resolved view rather than a stored table (customer, resolved from party at the grain set by d-customer-grain).",
+      "type": "boolean"
+    },
+    "resolved_from": {
+      "description": "Validator: an existing entity.",
+      "$ref": "common.schema.json#/$defs/kebab_id"
+    },
+    "resolution": {
+      "type": "object",
+      "required": ["rule", "when_level_absent"],
+      "properties": {
+        "rule": {"$ref": "common.schema.json#/$defs/prose"},
+        "when_level_absent": {"$ref": "common.schema.json#/$defs/prose"}
+      },
+      "additionalProperties": false
+    },
+
+    "properties": {
+      "type": "array",
+      "minItems": 1,
+      "items": {"$ref": "#/$defs/property"}
+    },
+
+    "read_by_decisions": {
+      "description": "Validator: each is an existing decision (warning if enumerated but unwritten).",
+      "type": "array",
+      "items": {"$ref": "common.schema.json#/$defs/decision_id"},
+      "uniqueItems": true
+    },
+    "read_by_metrics": {
+      "description": "Validator: each is an existing metric or Tier 2 component.",
+      "$ref": "common.schema.json#/$defs/id_list"
+    },
+
+    "pitfalls": {"$ref": "common.schema.json#/$defs/prose_list"}
+  },
+  "additionalProperties": false,
+
+  "if": {"required": ["derived"], "properties": {"derived": {"const": true}}},
+  "then": {"required": ["resolved_from", "resolution"]},
+  "else": {"not": {"anyOf": [{"required": ["resolved_from"]}, {"required": ["resolution"]}]}},
+
+  "$defs": {
+    "property": {
+      "description": "Validator: property names are unique within the entity; `references` names an existing entity; every property a metric's reads_entities lists exists here.",
+      "type": "object",
+      "required": ["name", "type", "required"],
+      "properties": {
+        "name": {"$ref": "common.schema.json#/$defs/snake_id"},
+        "type": {"enum": ["string", "date", "decimal", "integer", "boolean", "enum"]},
+        "required": {"type": "boolean"},
+        "values": {
+          "type": "array",
+          "items": {"$ref": "common.schema.json#/$defs/kebab_id"},
+          "minItems": 1,
+          "uniqueItems": true
+        },
+        "default": {"type": ["string", "number", "boolean"]},
+        "required_when": {"$ref": "common.schema.json#/$defs/condition"},
+        "references": {"$ref": "common.schema.json#/$defs/kebab_id"},
+        "description": {"$ref": "common.schema.json#/$defs/prose"}
+      },
+      "additionalProperties": false,
+      "if": {"properties": {"type": {"const": "enum"}}},
+      "then": {"required": ["values"]},
+      "else": {"not": {"required": ["values"]}}
+    }
+  }
+}

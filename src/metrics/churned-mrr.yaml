@@ -1,0 +1,19 @@
+id: churned-mrr
+type: metric
+tier: 1
+family: revenue-movement
+title: Churned MRR
+preferred_label: Churned MRR
+status: draft
+
+definition: >
+  MRR lost from customers falling to zero, dated according to
+  d-churn-dating.
+
+gated_by:
+  - d-churn-dating
+  - d-fx-treatment
+  - d-usage-recurring-basis
+
+relations:
+  - {type: componentOf, target: mrr}

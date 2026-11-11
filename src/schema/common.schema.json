@@ -1,0 +1,106 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "common.schema.json",
+  "title": "Shared definitions",
+  "description": "Building blocks referenced by the entity, metric, decision and binding schemas. Schemas check one file's shape; everything that needs to look across files (an id exists, an option belongs to its decision, a variant is reachable) is the validator's job and is listed in the description of the definition it applies to.",
+
+  "$defs": {
+    "kebab_id": {
+      "description": "A stable kebab-case identifier. Node ids must match their filename (validator).",
+      "type": "string",
+      "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$"
+    },
+
+    "decision_id": {
+      "description": "A decision id. Validator: the decision exists in src/decisions/. References to one of the 14 enumerated but not yet written decisions are warnings, not errors.",
+      "type": "string",
+      "pattern": "^d-[a-z0-9]+(-[a-z0-9]+)*$"
+    },
+
+    "snake_id": {
+      "description": "A parameter or property name.",
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9]*(_[a-z0-9]+)*$"
+    },
+
+    "status": {
+      "description": "`draft` marks a branch deliberately incomplete and open to contribution, not a failure.",
+      "enum": ["draft", "stable", "deprecated"]
+    },
+
+    "prose": {
+      "type": "string",
+      "minLength": 1
+    },
+
+    "prose_list": {
+      "type": "array",
+      "items": {"$ref": "#/$defs/prose"}
+    },
+
+    "id_list": {
+      "type": "array",
+      "items": {"$ref": "#/$defs/kebab_id"},
+      "uniqueItems": true
+    },
+
+    "condition": {
+      "description": "A reference to a decision's answer. Used by a variant's `selected_when`, a decision's `applies_when`, and `required_when` on parameters and entity properties. Exactly one of `equals` / `in` / `not_equals` / `not_in`. Prefer the negative forms over listing the other options, which silently breaks when an option is added. Validator: the decision exists and every option id belongs to it.",
+      "type": "object",
+      "required": ["decision"],
+      "properties": {
+        "decision": {"$ref": "#/$defs/decision_id"},
+        "equals": {"$ref": "#/$defs/kebab_id"},
+        "in": {"$ref": "#/$defs/option_set"},
+        "not_equals": {"$ref": "#/$defs/kebab_id"},
+        "not_in": {"$ref": "#/$defs/option_set"}
+      },
+      "oneOf": [
+        {"required": ["equals"]},
+        {"required": ["in"]},
+        {"required": ["not_equals"]},
+        {"required": ["not_in"]}
+      ],
+      "additionalProperties": false
+    },
+
+    "option_set": {
+      "type": "array",
+      "items": {"$ref": "#/$defs/kebab_id"},
+      "minItems": 1,
+      "uniqueItems": true
+    },
+
+    "parameter": {
+      "description": "A numeric or scalar knob: same model, different number. Declared on the decision or metric that reads it; a binding sets its value. Validator: a binding may set only declared parameters. Types are JSON's (`number`, not `decimal`): parameters are settings, not stored amounts. Entity properties use `decimal` because money must never be stored as a float.",
+      "type": "object",
+      "required": ["id", "type"],
+      "properties": {
+        "id": {"$ref": "#/$defs/snake_id"},
+        "type": {"enum": ["integer", "number", "string"]},
+        "default": {"type": ["integer", "number", "string"]},
+        "description": {"$ref": "#/$defs/prose"},
+        "required_when": {"$ref": "#/$defs/condition"}
+      },
+      "additionalProperties": false
+    },
+
+    "source": {
+      "description": "A citation. Every claim about how a metric is usually defined, and every benchmark, needs one.",
+      "type": "object",
+      "required": ["id", "title", "url"],
+      "properties": {
+        "id": {"$ref": "#/$defs/kebab_id"},
+        "title": {"$ref": "#/$defs/prose"},
+        "url": {"type": "string", "format": "uri"},
+        "note": {"$ref": "#/$defs/prose"}
+      },
+      "additionalProperties": false
+    },
+
+    "sources": {
+      "type": "array",
+      "items": {"$ref": "#/$defs/source"}
+    }
+  }
+}

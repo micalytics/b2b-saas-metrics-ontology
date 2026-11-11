@@ -48,8 +48,8 @@ Not everything the ontology asks you about is a metric. FX treatment is a Decisi
 
 ## Scope of v0.1
 
-**Tier 1 — full variant treatment (12):**
-MRR · ARR · Churned MRR · Expansion MRR · NRR/NDR · GRR · CAC · LTV · CAC Payback · Gross Margin · Rule of 40 · Win Rate
+**Tier 1 — full variant treatment (14):**
+MRR · ARR · Churned MRR · Expansion MRR · Gross and Net Retention, each on a cohort and a period-over-period basis ([ADR-0006](docs/adr/0006-retention-four-metrics.md)) · CAC · LTV · CAC Payback · Gross Margin · Rule of 40 · Win Rate
 
 **Tier 2 — documented as components of their Tier 1 parent or metric family (~18):**
 New MRR · Contraction MRR · Reactivation MRR · Net New MRR · Bookings · Billings · Logo Retention · Logo Churn · Gross Revenue Churn · Net Revenue Churn · LTV:CAC · Magic Number · Burn Multiple · Quick Ratio · Stage Conversion Rate · Sales Cycle Length · ACV · ARPA
@@ -76,7 +76,7 @@ Generated into `build/` and committed, so you can import without running the too
 ## Licence
 
 - **Content** (`src/`, `build/`, `docs/`) — [CC BY 4.0](LICENSE-CONTENT)
-- **Code** (`tools/`, CI) — [Apache 2.0](LICENSE.md)
+- **Code** (`tools/`, CI) — [Apache 2.0](LICENSE)
 
 ## Contributing
 
