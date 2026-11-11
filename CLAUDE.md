@@ -152,17 +152,19 @@ back. Automate everything downstream of it.
 `d-usage-recurring-basis`), the metric shape, `mrr` plus
 `net-retention-cohort` as worked examples, and `src/schema/*.json` for entity,
 metric, decision and binding. `churned-mrr` and `expansion-mrr` exist as
-`draft` files carrying a definition only.
+`draft` files carrying a definition only. `tools/validate.py` runs the
+schemas plus the cross-file checks, with tests in `tests/` and CI in
+`.github/workflows/validate.yml`. References to planned but unwritten nodes are
+warnings; `--strict` turns them into errors and is the release gate.
 
 **Next, in order:**
 
-1. `tools/validate.py` + CI. This is the quality gate everything downstream
-   depends on.
-2. The remaining 10 decisions — interactively, not in bulk. The contested ones
+1. The remaining 10 decisions — interactively, not in bulk. The contested ones
    are `d-cac-scope`, `d-cogs-scope`, `d-churn-dating` and `d-customer-grain`.
-3. The remaining 12 of 14 Tier 1 metrics (ADR-0006), same rule — including
+2. The remaining 12 of 14 Tier 1 metrics (ADR-0006), same rule — including
    the full treatment of the two drafts.
-4. Emitters: OKF, OWL+SKOS, OpenMetadata CSV, Knowledge Catalog JSON.
-5. Synthetic warehouse and the worked example proving cohort and
+3. Emitters: OKF, OWL+SKOS, OpenMetadata CSV, Knowledge Catalog JSON. The
+   build drift check (ADR-0003) joins CI with them.
+4. Synthetic warehouse and the worked example proving cohort and
    period-over-period retention diverge on identical data. That figure replaces
    the illustrative range currently in the README.

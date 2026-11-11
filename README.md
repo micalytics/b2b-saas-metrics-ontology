@@ -81,3 +81,11 @@ Generated into `build/` and committed, so you can import without running the too
 ## Contributing
 
 Variants marked `status: draft` are open questions, not oversights — they are the best place to contribute. If your company defines a metric in a way this ontology cannot express, that is a bug worth an issue.
+
+Before opening a pull request, run the same checks as CI:
+
+```bash
+pip install -r tools/requirements.txt
+python tools/validate.py
+pytest -q tests
+```

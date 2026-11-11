@@ -9,9 +9,10 @@ this file is the running journal and the list of open questions.
 - Delete the leftover `.gitkeep` files in `src/entities`, `src/metrics`,
   `src/schema`, `tools`, `build/*` and `examples/*` (`git rm` them; the sandbox
   cannot).
-- Write `tools/validate.py` and wire up CI. The cross-file checks it owns are
-  listed in the `description` fields of `src/schema/*.json`. References to the
-  enumerated-but-unwritten decisions and metrics are warnings, not errors.
+- Planned metric ids are not enumerated anywhere, so a reference to any
+  unwritten metric is a warning and a typo in a metric id only warns. A list of
+  planned metric ids (as the decisions README table already gives for
+  decisions) would let those become errors.
 - When `cac` is written, add it to `d-fx-treatment.gates`: it reads `cost`,
   which carries FX properties.
 - Move the parameters typed provisionally in `binding.schema.json`
@@ -39,6 +40,22 @@ this file is the running journal and the list of open questions.
   pending review (the schemas accept all of them as written):
 - Tier 2 metrics without a parent live in a "family index file" whose format is
   not yet defined, so it has no schema.
+
+## 2026-11-11
+
+- **`tools/validate.py` and CI.** Validates every file against its schema,
+  then the cross-file rules from the schema descriptions: filename matches id,
+  ids unique, references resolve, condition options belong to their decision,
+  variants reachable, `applies_when` acyclic, `gated_by` and `gates` symmetric,
+  decisions' `reads_entities` and entities' `read_by_decisions` symmetric,
+  `consumes` names real variants, labels match the naming default, parameter
+  ids unique, and bindings answer exactly the decisions that apply. References
+  to planned but unwritten nodes are warnings; `--strict` fails on them.
+  Planned decisions are read from the table in `src/decisions/README.md`.
+- 30 tests in `tests/test_validate.py`, each breaking one rule on a copy of
+  the real ontology. CI runs both on push to `main` and on pull requests.
+- Current state: 15 nodes, 0 errors, 44 warnings, all of them references to
+  the 10 unwritten decisions and the unwritten Tier 1 metrics.
 
 ## 2026-09-24
 
